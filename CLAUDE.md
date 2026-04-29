@@ -1,5 +1,9 @@
 # moa-app
 
+## 목표
+
+1차 목표: iOS 앱스토어 출시 (Apple Developer 계정 등록 후 EAS Build로 빌드)
+
 ## 앱 소개
 
 moa는 커플을 위한 React Native 앱입니다.
@@ -65,7 +69,15 @@ pnpm run lint         # 린트
 - `git-master` — 커밋 & 브랜치 관리
 - `writer` — README & 문서 작성
 
+## 워크플로우
+
+- 작업 시작 전: GitHub 이슈 생성
+- 이슈 번호로 브랜치 생성 (`feat/{번호}-{기능명}`)
+- 작업 완료 후: PR 생성 (`develop` 브랜치로, 이슈 연결)
+- 자세한 템플릿: `.claude/rules/github.md` 참고
+
 ## Rules
 
 - `rn-style.md` — RN 코딩 규칙, 웹→RN 대응 (`app/**`, `src/components/**`)
 - `supabase.md` — Supabase 설정 규칙 (`src/lib/supabase/**`)
+- `github.md` — 이슈/PR 템플릿 & 브랜치 전략
