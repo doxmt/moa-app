@@ -60,6 +60,14 @@ pnpm add <패키지>     # 패키지 추가
 pnpm remove <패키지>  # 패키지 제거
 ```
 
+**Expo 패키지 설치 시 주의** — `pnpm add`로 직접 설치하면 SDK 버전 무시하고 최신 버전이 들어옴
+
+```bash
+# Expo 패키지는 반드시 이 순서로
+npx expo install <패키지>   # SDK 호환 버전 확인 후
+pnpm add <패키지>@<버전>    # 그 버전으로 설치
+```
+
 ## 빌드 & 실행
 
 ```bash
