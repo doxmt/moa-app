@@ -1,64 +1,84 @@
-import { Link } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import { Image, Text, TouchableOpacity, View } from 'react-native';
 
-import { useAuthStore } from '@/stores/authStore';
+import { supabase } from '@/lib/supabase/client';
+
+WebBrowser.maybeCompleteAuthSession();
+
+type Provider = 'kakao' | 'google' | 'apple';
+
+const PROVIDERS: {
+  id: Provider;
+  label: string;
+  bg: string;
+  textColor: string;
+  border?: boolean;
+}[] = [
+  { id: 'kakao', label: '카카오로 계속하기', bg: '#FEE500', textColor: '#191919' },
+  { id: 'google', label: 'Google로 계속하기', bg: '#FFFFFF', textColor: '#222222', border: true },
+  { id: 'apple', label: 'Apple로 계속하기', bg: '#222222', textColor: '#FFFFFF' },
+];
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
-  const { signIn, loading } = useAuthStore();
+  const handleSocialLogin = async (provider: Provider) => {
+    const redirectTo = 'moa://auth/callback';
 
-  const handleLogin = async () => {
-    setErrorMsg('');
-    const { error } = await signIn(email.trim(), password);
-    if (error) setErrorMsg(error);
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo,
+        scopes:
+          provider === 'kakao'
+            ? 'profile_nickname profile_image account_email'
+            : undefined,
+        skipBrowserRedirect: true,
+      },
+    });
+
+    if (error || !data.url) return;
+
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
+    if (result.type === 'success' && result.url) {
+      const url = new URL(result.url);
+      const accessToken = url.searchParams.get('access_token');
+      const refreshToken = url.searchParams.get('refresh_token');
+
+      if (accessToken && refreshToken) {
+        await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+      }
+    }
   };
 
   return (
     <View className="flex-1 bg-white justify-center px-6">
-      <Text className="text-3xl font-bold text-center text-rose-500 mb-10">moa</Text>
+      <View className="items-center mb-12">
+        <Image
+          source={require('../../assets/images/icon.png')}
+          style={{ width: 120, height: 120 }}
+          resizeMode="contain"
+        />
+        <Text className="text-sm text-gray-500 mt-3">우리의 순간을 모아요</Text>
+      </View>
 
-      <TextInput
-        className="border border-gray-200 rounded-xl px-4 py-3 mb-3 text-base"
-        placeholder="이메일"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <TextInput
-        className="border border-gray-200 rounded-xl px-4 py-3 mb-4 text-base"
-        placeholder="비밀번호"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-
-      {errorMsg ? (
-        <Text className="text-red-500 text-sm mb-3">{errorMsg}</Text>
-      ) : null}
-
-      <TouchableOpacity
-        className="bg-rose-500 rounded-xl py-4 items-center mb-4"
-        onPress={handleLogin}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text className="text-white font-semibold text-base">로그인</Text>
-        )}
-      </TouchableOpacity>
-
-      <Link href="/(auth)/signup" asChild>
-        <TouchableOpacity className="items-center">
-          <Text className="text-gray-500 text-sm">
-            계정이 없으신가요? <Text className="text-rose-500 font-medium">회원가입</Text>
-          </Text>
-        </TouchableOpacity>
-      </Link>
+      <View className="gap-3">
+        {PROVIDERS.map((provider) => (
+          <TouchableOpacity
+            key={provider.id}
+            onPress={() => handleSocialLogin(provider.id)}
+            style={{
+              backgroundColor: provider.bg,
+              borderWidth: provider.border ? 1 : 0,
+              borderColor: '#E5E5E5',
+            }}
+            className="h-12 rounded-xl flex-row items-center justify-center gap-2"
+          >
+            <Text style={{ color: provider.textColor }} className="text-sm font-medium">
+              {provider.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 }
