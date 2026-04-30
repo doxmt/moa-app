@@ -19,6 +19,7 @@
     "@supabase/supabase-js": "^2.101.1",
     "date-holidays": "^3.26.12",
     "expo": "~54.0.34",
+    "expo-linking": "^55.0.14",
     "expo-router": "~6.0.23",
     "expo-status-bar": "~3.0.9",
     "expo-web-browser": "^55.0.14",

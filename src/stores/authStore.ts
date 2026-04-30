@@ -1,4 +1,4 @@
-import { Session, User } from '@supabase/supabase-js';
+import { Session, Subscription, User } from '@supabase/supabase-js';
 import { create } from 'zustand';
 
 import { supabase } from '@/lib/supabase/client';
@@ -6,41 +6,29 @@ import { supabase } from '@/lib/supabase/client';
 type AuthState = {
   session: Session | null;
   user: User | null;
-  loading: boolean;
   initialized: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
 };
 
-export const useAuthStore = create<AuthState>((set) => ({
+let authSubscription: Subscription | null = null;
+
+export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   user: null,
-  loading: false,
   initialized: false,
 
   initialize: async () => {
+    if (get().initialized) return;
+
     const { data } = await supabase.auth.getSession();
     set({ session: data.session, user: data.session?.user ?? null, initialized: true });
 
-    supabase.auth.onAuthStateChange((_event, session) => {
+    authSubscription?.unsubscribe();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       set({ session, user: session?.user ?? null });
     });
-  },
-
-  signIn: async (email, password) => {
-    set({ loading: true });
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    set({ loading: false });
-    return { error: error?.message ?? null };
-  },
-
-  signUp: async (email, password) => {
-    set({ loading: true });
-    const { error } = await supabase.auth.signUp({ email, password });
-    set({ loading: false });
-    return { error: error?.message ?? null };
+    authSubscription = subscription;
   },
 
   signOut: async () => {
