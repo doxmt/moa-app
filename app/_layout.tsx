@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/authStore';
 function AuthGate() {
   const router = useRouter();
   const segments = useSegments();
-  const { session, initialized, initialize } = useAuthStore();
+  const { session, initialized, initialize, profile } = useAuthStore();
 
   useEffect(() => {
     initialize();
@@ -18,13 +18,21 @@ function AuthGate() {
     if (!initialized) return;
 
     const inAuth = segments[0] === '(auth)';
+    const inOnboarding = segments[0] === '(onboarding)';
 
-    if (!session && !inAuth) {
-      router.replace('/(auth)/login');
-    } else if (session && inAuth) {
+    if (!session) {
+      if (!inAuth) router.replace('/(auth)/login');
+      return;
+    }
+
+    const needsOnboarding = !profile?.name;
+
+    if (needsOnboarding && !inOnboarding) {
+      router.replace('/(onboarding)/onboarding');
+    } else if (!needsOnboarding && (inAuth || inOnboarding)) {
       router.replace('/(tabs)/home');
     }
-  }, [session, initialized, segments]);
+  }, [session, initialized, segments, profile]);
 
   return null;
 }
