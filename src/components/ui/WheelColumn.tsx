@@ -21,8 +21,8 @@ type Props = {
 
 export default function WheelColumn({ items, selected, onSelect, format }: Props) {
   const scrollRef = useRef<ScrollView>(null)
-  const isScrollingRef = useRef(false)
   const prevSelectedRef = useRef(selected)
+  const isDraggingRef = useRef(false)
 
   useEffect(() => {
     const idx = items.indexOf(selected)
@@ -33,46 +33,23 @@ export default function WheelColumn({ items, selected, onSelect, format }: Props
   }, [])
 
   useEffect(() => {
-    if (prevSelectedRef.current === selected) return
+    if (prevSelectedRef.current === selected || isDraggingRef.current) return
     prevSelectedRef.current = selected
-    if (isScrollingRef.current) return
     const idx = items.indexOf(selected)
     if (idx >= 0) {
       scrollRef.current?.scrollTo({ y: idx * ITEM_HEIGHT, animated: true })
     }
   }, [selected, items])
 
-  const snapToIndex = useCallback(
-    (y: number) => {
-      const idx = Math.round(y / ITEM_HEIGHT)
+  const onMomentumScrollEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      isDraggingRef.current = false
+      const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT)
       const clamped = Math.max(0, Math.min(idx, items.length - 1))
-      scrollRef.current?.scrollTo({ y: clamped * ITEM_HEIGHT, animated: true })
       prevSelectedRef.current = items[clamped]
       onSelect(items[clamped])
     },
     [items, onSelect],
-  )
-
-  const onScrollBeginDrag = useCallback(() => {
-    isScrollingRef.current = true
-  }, [])
-
-  const onMomentumScrollEnd = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      isScrollingRef.current = false
-      snapToIndex(e.nativeEvent.contentOffset.y)
-    },
-    [snapToIndex],
-  )
-
-  const onScrollEndDrag = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      snapToIndex(e.nativeEvent.contentOffset.y)
-      setTimeout(() => {
-        isScrollingRef.current = false
-      }, 200)
-    },
-    [snapToIndex],
   )
 
   return (
@@ -83,9 +60,8 @@ export default function WheelColumn({ items, selected, onSelect, format }: Props
         showsVerticalScrollIndicator={false}
         snapToInterval={ITEM_HEIGHT}
         decelerationRate="fast"
-        onScrollBeginDrag={onScrollBeginDrag}
+        onScrollBeginDrag={() => { isDraggingRef.current = true }}
         onMomentumScrollEnd={onMomentumScrollEnd}
-        onScrollEndDrag={onScrollEndDrag}
         contentContainerStyle={styles.content}
         nestedScrollEnabled
       >

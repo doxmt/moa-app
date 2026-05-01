@@ -8,11 +8,16 @@ import {
   TextInput,
   StyleSheet,
   ActivityIndicator,
-  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+  Modal,
+  Switch,
+  Alert,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useCalendarData, DisplayEvent } from '@/hooks/useCalendarData'
-import ScrollTimePicker from '@/components/ui/ScrollTimePicker'
 import ScrollDatePicker from '@/components/ui/ScrollDatePicker'
+import DateTimeWheelPicker, { DateTimeVal } from '@/components/ui/DateTimeWheelPicker'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -27,9 +32,22 @@ const COLORS = [
   '#FD79A8',
 ]
 
-type ScheduleType = 'allday' | 'time' | 'range'
 type DateVal = { year: number; month: number; day: number }
-type TimeVal = { hour: number; minute: number }
+
+function formatDateTimeDisplay(dt: DateTimeVal): string {
+  const d = new Date(`${dt.date}T00:00:00`)
+  const m = d.getMonth() + 1
+  const day = d.getDate()
+  const wd = WEEKDAYS[d.getDay()]
+  const ampm = dt.hour < 12 ? '오전' : '오후'
+  const h12 = dt.hour === 0 ? 12 : dt.hour > 12 ? dt.hour - 12 : dt.hour
+  const min = String(dt.minute).padStart(2, '0')
+  return `${m}월 ${day}일 ${wd} ${ampm} ${h12}:${min}`
+}
+
+function formatDateOnlyDisplay(dv: DateVal): string {
+  return `${dv.year}년 ${dv.month}월 ${dv.day}일`
+}
 
 function toDateStr(year: number, month: number, day: number) {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
@@ -44,8 +62,8 @@ function strToDateVal(s: string): DateVal {
   return { year, month, day }
 }
 
-function timeValToStr(t: TimeVal) {
-  return `${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')}`
+function dateTimeValToTimeStr(dt: DateTimeVal) {
+  return `${String(dt.hour).padStart(2, '0')}:${String(dt.minute).padStart(2, '0')}`
 }
 
 function formatTimeLabel(event: DisplayEvent) {
@@ -88,24 +106,19 @@ export default function CalendarScreen() {
   const today = new Date()
   const todayStr = toDateStr(today.getFullYear(), today.getMonth() + 1, today.getDate())
 
+  const insets = useSafeAreaInsets()
+
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [title, setTitle] = useState('')
   const [color, setColor] = useState(COLORS[0])
-  const [scheduleType, setScheduleType] = useState<ScheduleType>('allday')
-  const [startDate, setStartDate] = useState<DateVal>({
-    year: today.getFullYear(),
-    month: today.getMonth() + 1,
-    day: today.getDate(),
-  })
-  const [endDate, setEndDate] = useState<DateVal>({
-    year: today.getFullYear(),
-    month: today.getMonth() + 1,
-    day: today.getDate(),
-  })
-  const [startTime, setStartTime] = useState<TimeVal>({ hour: 9, minute: 0 })
-  const [endTime, setEndTime] = useState<TimeVal>({ hour: 10, minute: 0 })
-  const [rangeTab, setRangeTab] = useState<'start' | 'end'>('start')
+  const [isAllDay, setIsAllDay] = useState(false)
+  const [startDateTime, setStartDateTime] = useState<DateTimeVal>({ date: todayStr, hour: 9, minute: 0 })
+  const [endDateTime, setEndDateTime] = useState<DateTimeVal>({ date: todayStr, hour: 10, minute: 0 })
+  const [startDateOnly, setStartDateOnly] = useState<DateVal>({ year: today.getFullYear(), month: today.getMonth() + 1, day: today.getDate() })
+  const [endDateOnly, setEndDateOnly] = useState<DateVal>({ year: today.getFullYear(), month: today.getMonth() + 1, day: today.getDate() })
+  const [showStartPicker, setShowStartPicker] = useState(false)
+  const [showEndPicker, setShowEndPicker] = useState(false)
   const [description, setDescription] = useState('')
   const [maxFutureDays, setMaxFutureDays] = useState(1000)
 
@@ -128,14 +141,15 @@ export default function CalendarScreen() {
 
   const openForm = (date: string) => {
     const dv = strToDateVal(date)
-    setStartDate(dv)
-    setEndDate(dv)
     setTitle('')
     setColor(COLORS[0])
-    setScheduleType('allday')
-    setStartTime({ hour: 9, minute: 0 })
-    setEndTime({ hour: 10, minute: 0 })
-    setRangeTab('start')
+    setIsAllDay(false)
+    setStartDateTime({ date, hour: 9, minute: 0 })
+    setEndDateTime({ date, hour: 10, minute: 0 })
+    setStartDateOnly(dv)
+    setEndDateOnly(dv)
+    setShowStartPicker(false)
+    setShowEndPicker(false)
     setDescription('')
     setShowForm(true)
   }
@@ -146,17 +160,11 @@ export default function CalendarScreen() {
     await createEvent({
       title: title.trim(),
       color,
-      isAllDay: scheduleType !== 'time',
-      startDate:
-        scheduleType === 'range'
-          ? dateValToStr(startDate)
-          : (selectedDate ?? dateValToStr(startDate)),
-      endDate:
-        scheduleType === 'range'
-          ? dateValToStr(endDate)
-          : (selectedDate ?? dateValToStr(startDate)),
-      startTime: scheduleType === 'time' ? timeValToStr(startTime) : undefined,
-      endTime: scheduleType === 'time' ? timeValToStr(endTime) : undefined,
+      isAllDay,
+      startDate: isAllDay ? dateValToStr(startDateOnly) : startDateTime.date,
+      endDate: isAllDay ? dateValToStr(endDateOnly) : endDateTime.date,
+      startTime: isAllDay ? undefined : dateTimeValToTimeStr(startDateTime),
+      endTime: isAllDay ? undefined : dateTimeValToTimeStr(endDateTime),
       description: description.trim() || undefined,
     })
 
@@ -452,162 +460,14 @@ export default function CalendarScreen() {
               {selectedDate.slice(5).replace('-', '월 ')}일
             </Text>
             <TouchableOpacity
-              onPress={() => (showForm ? setShowForm(false) : openForm(selectedDate))}
+              onPress={() => openForm(selectedDate)}
               style={styles.addButton}
             >
-              <Text style={styles.addButtonText}>
-                {showForm ? '취소' : '+ 일정 추가'}
-              </Text>
+              <Text style={styles.addButtonText}>+ 일정 추가</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-            {/* 추가 폼 */}
-            {showForm && (
-              <View style={styles.formCard}>
-                {/* 제목 */}
-                <TextInput
-                  placeholder="일정 제목"
-                  placeholderTextColor="#CCCCCC"
-                  value={title}
-                  onChangeText={setTitle}
-                  style={styles.titleInput}
-                  autoFocus
-                />
-
-                {/* 색상 선택 */}
-                <View className="flex-row items-center gap-2.5 mt-3">
-                  {COLORS.map((c) => (
-                    <TouchableOpacity
-                      key={c}
-                      onPress={() => setColor(c)}
-                      style={[
-                        styles.colorDot,
-                        { backgroundColor: c },
-                        color === c && styles.colorDotSelected,
-                      ]}
-                    >
-                      {color === c && <Text style={styles.checkmark}>✓</Text>}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                {/* 일정 타입 탭 */}
-                <View style={styles.typeTabs}>
-                  {(['allday', 'time', 'range'] as ScheduleType[]).map((type) => {
-                    const label =
-                      type === 'allday' ? '하루종일' : type === 'time' ? '시간 지정' : '기간 지정'
-                    return (
-                      <TouchableOpacity
-                        key={type}
-                        onPress={() => setScheduleType(type)}
-                        style={[
-                          styles.typeTab,
-                          scheduleType === type ? styles.typeTabActive : null,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.typeTabText,
-                            scheduleType === type ? styles.typeTabTextActive : null,
-                          ]}
-                        >
-                          {label}
-                        </Text>
-                      </TouchableOpacity>
-                    )
-                  })}
-                </View>
-
-                {/* 시간 지정 */}
-                {scheduleType === 'time' && (
-                  <View className="flex-row gap-3 mt-2">
-                    <View className="flex-1">
-                      <Text style={styles.pickerLabel}>시작</Text>
-                      <View style={styles.pickerBox}>
-                        <ScrollTimePicker value={startTime} onChange={setStartTime} />
-                      </View>
-                    </View>
-                    <View className="flex-1">
-                      <Text style={styles.pickerLabel}>종료</Text>
-                      <View style={styles.pickerBox}>
-                        <ScrollTimePicker value={endTime} onChange={setEndTime} />
-                      </View>
-                    </View>
-                  </View>
-                )}
-
-                {/* 기간 지정 */}
-                {scheduleType === 'range' && (
-                  <View className="mt-2">
-                    <View style={styles.rangeTabs}>
-                      {(['start', 'end'] as const).map((tab) => (
-                        <TouchableOpacity
-                          key={tab}
-                          onPress={() => setRangeTab(tab)}
-                          style={[
-                            styles.rangeTab,
-                            rangeTab === tab ? styles.rangeTabActive : null,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.rangeTabText,
-                              rangeTab === tab ? styles.rangeTabTextActive : null,
-                            ]}
-                          >
-                            {tab === 'start'
-                              ? `시작일 · ${dateValToStr(startDate).slice(5).replace('-', '/')}`
-                              : `종료일 · ${dateValToStr(endDate).slice(5).replace('-', '/')}`}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                    <View style={[styles.pickerBox, { marginTop: 8 }]}>
-                      {rangeTab === 'start' ? (
-                        <ScrollDatePicker
-                          value={startDate}
-                          onChange={(v) => {
-                            setStartDate(v)
-                            if (dateValToStr(v) > dateValToStr(endDate)) setEndDate(v)
-                          }}
-                          minYear={2020}
-                          maxYear={today.getFullYear() + 5}
-                        />
-                      ) : (
-                        <ScrollDatePicker
-                          value={endDate}
-                          onChange={setEndDate}
-                          minYear={2020}
-                          maxYear={today.getFullYear() + 5}
-                        />
-                      )}
-                    </View>
-                  </View>
-                )}
-
-                {/* 메모 */}
-                <TextInput
-                  placeholder="메모 (선택)"
-                  placeholderTextColor="#CCCCCC"
-                  value={description}
-                  onChangeText={setDescription}
-                  style={[styles.titleInput, { marginTop: 12 }]}
-                />
-
-                {/* 저장 버튼 */}
-                <TouchableOpacity
-                  onPress={handleSubmit}
-                  disabled={submitting || !title.trim()}
-                  style={[styles.saveButton, (submitting || !title.trim()) && styles.saveButtonDisabled]}
-                >
-                  <Text style={styles.saveButtonText}>
-                    {submitting ? '저장 중...' : '저장'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
             {/* 일정 목록 */}
             {selectedEvents.length === 0 ? (
               <Text className="text-sm text-moa-placeholder text-center py-2">
@@ -637,7 +497,14 @@ export default function CalendarScreen() {
                       </View>
                       <Text style={styles.ownerLabel}>{getEventOwnerLabel(event)}</Text>
                       {!event.isBirthday && (
-                        <TouchableOpacity onPress={() => removeEvent(event.id)}>
+                        <TouchableOpacity
+                          onPress={() =>
+                            Alert.alert('일정 삭제', '이 일정을 삭제할까요?', [
+                              { text: '취소', style: 'cancel' },
+                              { text: '삭제', style: 'destructive', onPress: () => removeEvent(event.id) },
+                            ])
+                          }
+                        >
                           <Text style={styles.deleteIcon}>✕</Text>
                         </TouchableOpacity>
                       )}
@@ -649,11 +516,267 @@ export default function CalendarScreen() {
           </ScrollView>
         </View>
       )}
+
+      {/* 일정 추가 모달 */}
+      <Modal
+        visible={showForm}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowForm(false)}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1, backgroundColor: '#F2F2F7' }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          pointerEvents={submitting ? 'none' : 'auto'}
+        >
+          {/* 상단바 */}
+          <View style={[styles.formNavBar, { paddingTop: insets.top }]}>
+            <TouchableOpacity onPress={() => setShowForm(false)} style={styles.formNavBtn}>
+              <Text style={styles.formNavCancel}>취소</Text>
+            </TouchableOpacity>
+            <Text style={styles.formNavTitle}>일정 추가</Text>
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={submitting || !title.trim()}
+              style={styles.formNavBtn}
+            >
+              <Text style={[styles.formNavSave, (submitting || !title.trim()) && { opacity: 0.3 }]}>
+                {submitting ? '저장 중' : '저장'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            scrollEnabled={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 32 }}
+          >
+            {/* 제목 */}
+            <View style={styles.formSection}>
+              <TextInput
+                placeholder="일정 제목"
+                placeholderTextColor="#CCCCCC"
+                value={title}
+                onChangeText={setTitle}
+                style={styles.formTitleInput}
+              />
+            </View>
+
+            {/* 색상 */}
+            <View style={styles.formSection}>
+              <View style={styles.formRow}>
+                <Text style={styles.formRowLabel}>색상</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  {COLORS.map((c) => (
+                    <TouchableOpacity
+                      key={c}
+                      onPress={() => setColor(c)}
+                      style={[styles.colorDot, { backgroundColor: c }, color === c && styles.colorDotSelected]}
+                    >
+                      {color === c && <Text style={styles.checkmark}>✓</Text>}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            {/* 시작 / 종료 / 하루종일 */}
+            <View style={styles.formSection}>
+              {/* 시작 */}
+              <TouchableOpacity
+                style={styles.formRow}
+                onPress={() => {
+                  setShowStartPicker((v) => !v)
+                  setShowEndPicker(false)
+                }}
+              >
+                <Text style={styles.formRowLabel}>시작</Text>
+                <Text style={styles.formRowValue}>
+                  {isAllDay
+                    ? formatDateOnlyDisplay(startDateOnly)
+                    : formatDateTimeDisplay(startDateTime)}
+                </Text>
+              </TouchableOpacity>
+              {showStartPicker && (
+                <View style={styles.pickerBox}>
+                  {isAllDay ? (
+                    <ScrollDatePicker
+                      value={startDateOnly}
+                      onChange={(v) => {
+                        setStartDateOnly(v)
+                        if (dateValToStr(v) > dateValToStr(endDateOnly)) setEndDateOnly(v)
+                      }}
+                      minYear={2020}
+                      maxYear={today.getFullYear() + 5}
+                    />
+                  ) : (
+                    <DateTimeWheelPicker
+                      value={startDateTime}
+                      onChange={(v) => {
+                        setStartDateTime(v)
+                        const startMs = new Date(`${v.date}T${String(v.hour).padStart(2,'0')}:${String(v.minute).padStart(2,'0')}`).getTime()
+                        const endMs = new Date(`${endDateTime.date}T${String(endDateTime.hour).padStart(2,'0')}:${String(endDateTime.minute).padStart(2,'0')}`).getTime()
+                        if (endMs <= startMs) {
+                          const newEnd = new Date(startMs + 60 * 60 * 1000)
+                          setEndDateTime({
+                            date: newEnd.toISOString().slice(0, 10),
+                            hour: newEnd.getHours(),
+                            minute: Math.round(newEnd.getMinutes() / 5) * 5 % 60,
+                          })
+                        }
+                      }}
+                      baseDate={selectedDate ?? todayStr}
+                    />
+                  )}
+                </View>
+              )}
+
+              <View style={styles.formDivider} />
+
+              {/* 종료 */}
+              <TouchableOpacity
+                style={styles.formRow}
+                onPress={() => {
+                  setShowEndPicker((v) => !v)
+                  setShowStartPicker(false)
+                }}
+              >
+                <Text style={styles.formRowLabel}>종료</Text>
+                <Text style={styles.formRowValue}>
+                  {isAllDay
+                    ? formatDateOnlyDisplay(endDateOnly)
+                    : formatDateTimeDisplay(endDateTime)}
+                </Text>
+              </TouchableOpacity>
+              {showEndPicker && (
+                <View style={styles.pickerBox}>
+                  {isAllDay ? (
+                    <ScrollDatePicker
+                      value={endDateOnly}
+                      onChange={setEndDateOnly}
+                      minYear={2020}
+                      maxYear={today.getFullYear() + 5}
+                    />
+                  ) : (
+                    <DateTimeWheelPicker
+                      value={endDateTime}
+                      onChange={setEndDateTime}
+                      baseDate={selectedDate ?? todayStr}
+                    />
+                  )}
+                </View>
+              )}
+
+              <View style={styles.formDivider} />
+
+              {/* 하루종일 */}
+              <View style={styles.formRow}>
+                <Text style={styles.formRowLabel}>하루종일</Text>
+                <Switch
+                  value={isAllDay}
+                  onValueChange={(v) => {
+                    setIsAllDay(v)
+                    setShowStartPicker(false)
+                    setShowEndPicker(false)
+                  }}
+                  trackColor={{ false: '#E0E0E0', true: '#222222' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+            </View>
+
+            {/* 메모 */}
+            <View style={styles.formSection}>
+              <TextInput
+                placeholder="메모"
+                placeholderTextColor="#CCCCCC"
+                value={description}
+                onChangeText={setDescription}
+                style={styles.formMemoInput}
+                multiline
+              />
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
+  formNavBar: {
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#C8C8C8',
+  },
+  formNavBtn: {
+    minWidth: 56,
+    paddingVertical: 8,
+  },
+  formNavTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#222222',
+  },
+  formNavCancel: {
+    fontSize: 16,
+    color: '#888888',
+  },
+  formNavSave: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#222222',
+    textAlign: 'right',
+  },
+  formSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  formRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 50,
+  },
+  formRowLabel: {
+    fontSize: 15,
+    color: '#222222',
+  },
+  formRowValue: {
+    fontSize: 14,
+    color: '#888888',
+    flexShrink: 1,
+    textAlign: 'right',
+    marginLeft: 8,
+  },
+  formDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E8E8E8',
+    marginLeft: 16,
+  },
+  formTitleInput: {
+    fontSize: 17,
+    color: '#222222',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 50,
+  },
+  formMemoInput: {
+    fontSize: 15,
+    color: '#222222',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 80,
+  },
   weekdayText: {
     fontSize: 11,
     fontWeight: '500',
