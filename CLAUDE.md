@@ -94,6 +94,30 @@ pnpm run lint         # 린트
 - 작업 완료 후: PR 생성 (`develop` 브랜치로, 이슈 연결)
 - 자세한 템플릿: `.claude/rules/github.md` 참고
 
+## 디자인 시스템
+
+### 색상 (tailwind.config.js에 등록됨)
+
+| 토큰 | 값 | 용도 |
+|---|---|---|
+| `moa-text` | `#222222` | 기본 텍스트 |
+| `moa-sub` | `#888888` | 보조 텍스트 |
+| `moa-placeholder` | `#CCCCCC` | 플레이스홀더, 비활성 |
+| `moa-muted` | `#AAAAAA` | 비활성 탭, 힌트 |
+| `moa-border` | `#F0F0F0` | 테두리, 구분선 |
+| `moa-bg` | `#FAFAFA` | 헤더 배경 |
+
+### 레이아웃
+
+- 좌우 패딩: `px-5` (20px)
+- 상하 패딩: `py-4` (16px)
+- 카드 border-radius: `rounded-2xl`
+- 카드 border: `border border-moa-border`
+
+### 마이그레이션 시 웹 색상 대응
+
+웹 소스의 하드코딩 색상(`text-[#222222]` 등)은 위 토큰으로 치환해서 사용.
+
 ## Rules
 
 - `rn-style.md` — RN 코딩 규칙, 웹→RN 대응 (`app/**`, `src/components/**`)

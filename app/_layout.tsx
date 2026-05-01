@@ -1,6 +1,7 @@
 import '../global.css';
 
 import { Stack, useRouter, useSegments } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { useAuthStore } from '@/stores/authStore';
@@ -32,6 +33,7 @@ function AuthGate() {
 export default function RootLayout() {
   return (
     <>
+      <StatusBar style="dark" />
       <AuthGate />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
