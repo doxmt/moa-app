@@ -100,7 +100,7 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
       <View className="flex-1 px-5 pb-5 gap-5">
         {/* 장르 필터 */}
         {category.genres.length > 1 && (
-          <View className="flex-row flex-wrap gap-2 justify-center">
+          <View className="flex-row flex-wrap gap-2">
             {category.genres.map((g) => (
               <TouchableOpacity
                 key={g}
