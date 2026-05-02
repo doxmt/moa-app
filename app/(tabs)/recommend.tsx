@@ -104,7 +104,7 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerClassName="gap-2 pb-1"
+            contentContainerStyle={{ gap: 8, paddingBottom: 4, alignItems: 'center' }}
           >
             {category.genres.map((g) => (
               <TouchableOpacity
