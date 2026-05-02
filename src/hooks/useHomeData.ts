@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 
 import { supabase } from '@/lib/supabase/client';
 import { fetchCoupleBasic } from '@/lib/supabase/profile';
@@ -25,8 +26,13 @@ export function useHomeData() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
-  useEffect(() => {
-    async function load() {
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [])
+  );
+
+  async function load() {
       const couple = await fetchCoupleBasic();
       if (!couple) {
         setLoading(false);
@@ -95,10 +101,7 @@ export function useHomeData() {
         balanceGame,
       });
       setLoading(false);
-    }
-
-    load();
-  }, []);
+  }
 
   const uploadPhoto = async (uri: string) => {
     if (!data?.coupleId) return;
