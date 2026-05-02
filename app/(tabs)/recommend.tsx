@@ -61,16 +61,17 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
 
   const pool = genre === '전체' ? items : items.filter((i) => i.genre === genre);
 
+  const genreImage = genre !== '전체' ? genreImages[genre] : undefined;
+
   const pick = () => {
     if (pool.length === 0 || picking) return;
     setPicking(true);
     setPicked(null);
     const random = pool[Math.floor(Math.random() * pool.length)];
-    const imageUrl = random.genre ? genreImages[random.genre] : undefined;
     const show = () => { setPicked(random); setPicking(false); };
-    if (imageUrl) {
+    if (genreImage) {
       const start = Date.now();
-      Image.prefetch(imageUrl).finally(() => {
+      Image.prefetch(genreImage).finally(() => {
         const elapsed = Date.now() - start;
         setTimeout(show, Math.max(0, 800 - elapsed));
       });
@@ -78,8 +79,6 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
       setTimeout(show, 800);
     }
   };
-
-  const genreImage = picked?.genre ? genreImages[picked.genre] : undefined;
 
   return (
     <View className="flex-1">
