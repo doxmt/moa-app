@@ -207,12 +207,12 @@ export default function RecommendScreen() {
       </View>
 
       {/* 카테고리 목록 */}
-      <View className="flex-1 px-5 pb-4 gap-3">
+      <View className="px-5 pb-4 gap-3">
         {/* 첫 번째 카테고리 (큰 카드) */}
         <TouchableOpacity
           onPress={() => setSelected(CATEGORIES[0])}
           activeOpacity={0.85}
-          className="flex-1 bg-white border border-moa-border rounded-3xl items-center justify-center gap-3"
+          className="h-44 bg-white border border-moa-border rounded-3xl items-center justify-center gap-3"
         >
           <Text className="text-5xl">{CATEGORIES[0].emoji}</Text>
           <View className="items-center gap-0.5">
@@ -222,13 +222,13 @@ export default function RecommendScreen() {
         </TouchableOpacity>
 
         {/* 두 번째, 세 번째 카테고리 (나란히) */}
-        <View className="flex-row gap-3 flex-1">
+        <View className="flex-row gap-3">
           {CATEGORIES.slice(1).map((cat) => (
             <TouchableOpacity
               key={cat.id}
               onPress={() => setSelected(cat)}
               activeOpacity={0.85}
-              className="flex-1 bg-white border border-moa-border rounded-3xl items-center justify-center gap-3"
+              className="flex-1 h-36 bg-white border border-moa-border rounded-3xl items-center justify-center gap-3"
             >
               <Text className="text-4xl">{cat.emoji}</Text>
               <View className="items-center gap-0.5">
