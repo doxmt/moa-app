@@ -61,17 +61,20 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
 
   const pool = genre === '전체' ? items : items.filter((i) => i.genre === genre);
 
-  const genreImage = genre !== '전체' ? genreImages[genre] : undefined;
+  const genreImage = genre !== '전체'
+    ? genreImages[genre]
+    : (picked?.genre ? genreImages[picked.genre] : undefined);
 
   const pick = () => {
     if (pool.length === 0 || picking) return;
     setPicking(true);
     setPicked(null);
     const random = pool[Math.floor(Math.random() * pool.length)];
+    const imageUrl = genre !== '전체' ? genreImages[genre] : (random.genre ? genreImages[random.genre] : undefined);
     const show = () => { setPicked(random); setPicking(false); };
-    if (genreImage) {
+    if (imageUrl) {
       const start = Date.now();
-      Image.prefetch(genreImage).finally(() => {
+      Image.prefetch(imageUrl).finally(() => {
         const elapsed = Date.now() - start;
         setTimeout(show, Math.max(0, 800 - elapsed));
       });
