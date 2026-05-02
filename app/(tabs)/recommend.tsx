@@ -48,6 +48,7 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
   const [genreImages, setGenreImages] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [picking, setPicking] = useState(false);
+  const [imageReady, setImageReady] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -71,7 +72,7 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
     setPicked(null);
     const random = pool[Math.floor(Math.random() * pool.length)];
     const imageUrl = genre !== '전체' ? genreImages[genre] : (random.genre ? genreImages[random.genre] : undefined);
-    const show = () => { setPicked(random); setPicking(false); };
+    const show = () => { setImageReady(false); setPicked(random); setPicking(false); };
     if (imageUrl) {
       const start = Date.now();
       Image.prefetch(imageUrl).finally(() => {
@@ -136,23 +137,32 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
             </View>
           ) : picked ? (
             genreImage ? (
-              <ImageBackground
-                source={{ uri: genreImage }}
-                style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' }}
-                resizeMode="cover"
-              >
-                <View className="absolute inset-0 bg-black/30" />
-                <View className="items-center gap-3">
-                  <Text className="text-4xl font-bold text-center text-white px-6" style={{ textShadowColor: 'rgba(0,0,0,0.3)', textShadowRadius: 4 }}>
-                    {picked.name}
-                  </Text>
-                  {picked.genre && (
-                    <View className="px-3 py-1 rounded-full bg-white/80">
-                      <Text className="text-xs text-moa-text">{picked.genre}</Text>
-                    </View>
-                  )}
-                </View>
-              </ImageBackground>
+              <>
+                <ImageBackground
+                  source={{ uri: genreImage }}
+                  style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' }}
+                  resizeMode="cover"
+                  onLoad={() => setImageReady(true)}
+                >
+                  <View className="absolute inset-0 bg-black/30" />
+                  <View className="items-center gap-3">
+                    <Text className="text-4xl font-bold text-center text-white px-6" style={{ textShadowColor: 'rgba(0,0,0,0.3)', textShadowRadius: 4 }}>
+                      {picked.name}
+                    </Text>
+                    {picked.genre && (
+                      <View className="px-3 py-1 rounded-full bg-white/80">
+                        <Text className="text-xs text-moa-text">{picked.genre}</Text>
+                      </View>
+                    )}
+                  </View>
+                </ImageBackground>
+                {!imageReady && (
+                  <View className="absolute inset-0 bg-white items-center justify-center gap-3">
+                    <Text className="text-5xl">🎲</Text>
+                    <Text className="text-sm text-moa-muted">고르는 중...</Text>
+                  </View>
+                )}
+              </>
             ) : (
               <View className="items-center gap-3">
                 <Text className="text-4xl font-bold text-center text-moa-text px-6">
