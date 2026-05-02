@@ -84,7 +84,6 @@ pnpm run lint         # 린트
 - `debugger` — 버그 & 빌드 오류 해결
 - `code-reviewer` — 코드 품질 리뷰
 - `qa-tester` — QA 테스트
-- `git-master` — 커밋 & 브랜치 관리
 - `writer` — README & 문서 작성
 
 ## 워크플로우 명령어
@@ -92,14 +91,14 @@ pnpm run lint         # 린트
 | 명령어 | 설명 |
 |---|---|
 | `/start` | 세션 시작 — current_state.md 읽기 → 작업 확인 → git pull → 이슈 생성 → 브랜치 생성 → **코드 작성** (여기서 멈춤) |
-| `/submit` | 제출 — 커밋 & 푸시 → PR 생성 (base: develop) |
+| `/submit` | 제출 — 미커밋 변경사항 있으면 최종 커밋 → 푸시 → PR 생성 (base: develop) |
 | `/review` | 코드 리뷰 — 현재 PR 변경사항 분석 → 리뷰 결과 반영 → 재커밋 & 재푸시 |
 | `/finish` | 마무리 — PR 머지 → develop 브랜치 복귀 → git pull |
 | `/wrap` | 세션 종료 — 작업 내용 정리 → current_state.md 업데이트 |
 
 **각 명령어는 독립적으로 동작한다. 사용자가 명시적으로 호출한 명령어만 실행하고, 다음 단계로 자동 진행하지 않는다.**
 
-git 작업(커밋/푸시/PR/머지)은 반드시 `git-master` 에이전트를 사용한다.
+git 작업(커밋/푸시/PR/머지)은 Claude가 Bash로 직접 실행한다.
 
 자세한 이슈/PR 템플릿: `.claude/rules/github.md` 참고
 
