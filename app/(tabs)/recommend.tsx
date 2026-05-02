@@ -98,13 +98,13 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
         </Text>
       </View>
 
-      <View className="flex-1 px-5 pb-5 gap-5">
+      <View className="flex-1 px-5 pb-5 gap-4">
         {/* 장르 필터 */}
         {category.genres.length > 1 && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 8, paddingBottom: 4, alignItems: 'center' }}
+            contentContainerStyle={{ gap: 8, alignItems: 'center' }}
           >
             {category.genres.map((g) => (
               <TouchableOpacity
@@ -129,7 +129,7 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
         )}
 
         {/* 결과 카드 */}
-        <View className="flex-1 rounded-3xl overflow-hidden border border-moa-border bg-white items-center justify-center">
+        <View className="h-48 rounded-3xl overflow-hidden border border-moa-border bg-white items-center justify-center">
           {loading ? (
             <ActivityIndicator color="#CCCCCC" />
           ) : picking ? (
@@ -175,6 +175,38 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
             </View>
           )}
         </View>
+
+        {/* 항목 목록 */}
+        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+          {loading ? null : pool.length === 0 ? (
+            <View className="items-center py-8">
+              <Text className="text-sm text-moa-placeholder">항목이 없어요</Text>
+            </View>
+          ) : (
+            <View className="gap-2 pb-2">
+              {pool.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  onPress={() => setPicked(item)}
+                  className={`flex-row items-center justify-between px-4 py-3 rounded-2xl border ${
+                    picked?.id === item.id
+                      ? 'bg-moa-text border-moa-text'
+                      : 'bg-white border-moa-border'
+                  }`}
+                >
+                  <Text className={`text-sm font-medium ${picked?.id === item.id ? 'text-white' : 'text-moa-text'}`}>
+                    {item.name}
+                  </Text>
+                  {item.genre && (
+                    <Text className={`text-xs ${picked?.id === item.id ? 'text-white/70' : 'text-moa-muted'}`}>
+                      {item.genre}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </ScrollView>
 
         {/* 뽑기 버튼 */}
         <TouchableOpacity
