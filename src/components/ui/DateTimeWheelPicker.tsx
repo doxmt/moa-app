@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import WheelColumn from './WheelColumn'
 
 export type DateTimeVal = {
@@ -79,8 +79,8 @@ export default function DateTimeWheelPicker({ value, onChange, baseDate }: Props
     onChange({ ...value, minute: newMinute })
 
   return (
-    <View style={{ flexDirection: 'row', paddingHorizontal: 8 }}>
-      <View style={{ flex: 5 }}>
+    <View style={styles.container}>
+      <View style={styles.colDate}>
         <WheelColumn
           items={dateIndices}
           selected={selectedDateIdx}
@@ -88,7 +88,7 @@ export default function DateTimeWheelPicker({ value, onChange, baseDate }: Props
           format={(i) => formatDate(dates[i] ?? baseDate)}
         />
       </View>
-      <View style={{ flex: 2 }}>
+      <View style={styles.colAmpm}>
         <WheelColumn
           items={AMPM_ITEMS}
           selected={ampm}
@@ -96,7 +96,7 @@ export default function DateTimeWheelPicker({ value, onChange, baseDate }: Props
           format={(v) => (v === 0 ? '오전' : '오후')}
         />
       </View>
-      <View style={{ flex: 2 }}>
+      <View style={styles.colHour}>
         <WheelColumn
           items={HOUR_ITEMS}
           selected={hour12}
@@ -104,7 +104,7 @@ export default function DateTimeWheelPicker({ value, onChange, baseDate }: Props
           format={(v) => String(v)}
         />
       </View>
-      <View style={{ flex: 2 }}>
+      <View style={styles.colMinute}>
         <WheelColumn
           items={MINUTE_ITEMS}
           selected={minute}
@@ -115,3 +115,14 @@ export default function DateTimeWheelPicker({ value, onChange, baseDate }: Props
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    paddingHorizontal: 8,
+  },
+  colDate: { flex: 5 },
+  colAmpm: { flex: 2 },
+  colHour: { flex: 2 },
+  colMinute: { flex: 2 },
+})

@@ -6,6 +6,7 @@ import {
   Image,
   ImageBackground,
   ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
 import { getRecommendations, getGenreImages, Recommendation } from '@/lib/supabase/recommendations';
 
@@ -140,13 +141,13 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
               <>
                 <ImageBackground
                   source={{ uri: genreImage }}
-                  style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' }}
+                  style={styles.genreImageBg}
                   resizeMode="cover"
                   onLoad={() => setImageReady(true)}
                 >
                   <View className="absolute inset-0 bg-black/30" />
                   <View className="items-center gap-3">
-                    <Text className="text-4xl font-bold text-center text-white px-6" style={{ textShadowColor: 'rgba(0,0,0,0.3)', textShadowRadius: 4 }}>
+                    <Text className="text-4xl font-bold text-center text-white px-6" style={styles.genreTitle}>
                       {picked.name}
                     </Text>
                     {picked.genre && (
@@ -249,3 +250,16 @@ export default function RecommendScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  genreImageBg: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  genreTitle: {
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowRadius: 4,
+  },
+});

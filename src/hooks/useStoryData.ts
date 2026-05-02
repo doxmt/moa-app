@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { supabase } from '@/lib/supabase/client';
+import { fetchCoupleBasic } from '@/lib/supabase/profile';
 import { Story, addStory, deleteStory, getStories, updateCaption } from '@/lib/supabase/stories';
 
 type State = {
@@ -26,37 +26,20 @@ export function useStoryData() {
 
   useEffect(() => {
     async function init() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('couple_id, couple_nickname, name')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!profile?.couple_id) {
+      const couple = await fetchCoupleBasic();
+      if (!couple) {
         setState((prev) => ({ ...prev, loading: false }));
         return;
       }
 
-      const { data: partner } = await supabase
-        .from('profiles')
-        .select('couple_nickname, name')
-        .eq('couple_id', profile.couple_id)
-        .neq('user_id', user.id)
-        .single();
-
-      const stories = await getStories(profile.couple_id);
+      const stories = await getStories(couple.coupleId);
 
       setState((prev) => ({
         ...prev,
-        coupleId: profile.couple_id,
-        userId: user.id,
-        myNickname: profile.couple_nickname ?? profile.name ?? '나',
-        partnerNickname: partner?.couple_nickname ?? partner?.name ?? '상대방',
+        coupleId: couple.coupleId,
+        userId: couple.userId,
+        myNickname: couple.myNickname || '나',
+        partnerNickname: couple.partnerNickname ?? '상대방',
         stories,
         loading: false,
       }));

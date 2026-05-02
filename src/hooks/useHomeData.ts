@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase/client';
+import { fetchCoupleBasic } from '@/lib/supabase/profile';
 import { deleteOldCouplePhotos, getLatestPhotoUrl, uploadCouplePhoto } from '@/lib/supabase/photo';
 
 type HomeData = {
@@ -26,26 +27,13 @@ export function useHomeData() {
 
   useEffect(() => {
     async function load() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
+      const couple = await fetchCoupleBasic();
+      if (!couple) {
         setLoading(false);
         return;
       }
 
-      const { data: myProfile } = await supabase
-        .from('profiles')
-        .select('name, couple_nickname, couple_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!myProfile?.couple_id) {
-        setLoading(false);
-        return;
-      }
-
-      const coupleId = myProfile.couple_id;
+      const { userId, coupleId, myNickname, partnerNickname } = couple;
 
       const { data: coupleData } = await supabase
         .from('couples')
@@ -59,13 +47,6 @@ export function useHomeData() {
         const today = new Date();
         dDay = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       }
-
-      const { data: partner } = await supabase
-        .from('profiles')
-        .select('name, couple_nickname')
-        .eq('couple_id', coupleId)
-        .neq('user_id', user.id)
-        .single();
 
       let balanceGame: HomeData['balanceGame'] = null;
       const { data: games } = await supabase
@@ -82,14 +63,14 @@ export function useHomeData() {
             .select('selected_option')
             .eq('game_id', game.id)
             .eq('couple_id', coupleId)
-            .eq('user_id', user.id)
+            .eq('user_id', userId)
             .single(),
           supabase
             .from('game_answers')
             .select('selected_option')
             .eq('game_id', game.id)
             .eq('couple_id', coupleId)
-            .neq('user_id', user.id)
+            .neq('user_id', userId)
             .single(),
         ]);
 
@@ -106,8 +87,8 @@ export function useHomeData() {
       const latestPhotoUrl = await getLatestPhotoUrl(coupleId);
 
       setData({
-        myNickname: myProfile.couple_nickname ?? myProfile.name ?? '',
-        partnerNickname: partner?.couple_nickname ?? partner?.name ?? null,
+        myNickname,
+        partnerNickname,
         coupleId,
         dDay,
         latestPhotoUrl,

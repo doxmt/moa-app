@@ -148,7 +148,7 @@ export default function LoginScreen() {
       <View className="items-center mb-12">
         <Image
           source={require('../../assets/images/icon.png')}
-          style={{ width: 120, height: 120 }}
+          style={styles.logo}
           resizeMode="contain"
         />
         <Text className="text-sm text-gray-500 mt-3">우리의 순간을 모아요</Text>
@@ -206,5 +206,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     marginRight: 24,
+  },
+  logo: {
+    width: 120,
+    height: 120,
   },
 });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase/client';
+import { fetchCoupleBasic } from '@/lib/supabase/profile';
 
 export type GameItem = {
   id: string;
@@ -32,33 +33,13 @@ export function useQuestionData() {
   async function load() {
     setLoading(true);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    const couple = await fetchCoupleBasic();
+    if (!couple) {
       setLoading(false);
       return;
     }
 
-    const { data: myProfile } = await supabase
-      .from('profiles')
-      .select('name, couple_nickname, couple_id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!myProfile?.couple_id) {
-      setLoading(false);
-      return;
-    }
-
-    const coupleId = myProfile.couple_id;
-
-    const { data: partner } = await supabase
-      .from('profiles')
-      .select('name, couple_nickname')
-      .eq('couple_id', coupleId)
-      .neq('user_id', user.id)
-      .single();
+    const { userId, coupleId, myNickname, partnerNickname } = couple;
 
     const { data: games } = await supabase
       .from('balance_games')
@@ -68,8 +49,8 @@ export function useQuestionData() {
     if (!games || games.length === 0) {
       setData({
         games: [],
-        myNickname: myProfile.couple_nickname ?? myProfile.name ?? '',
-        partnerNickname: partner?.couple_nickname ?? partner?.name ?? null,
+        myNickname,
+        partnerNickname,
         coupleId,
       });
       setLoading(false);
@@ -87,12 +68,12 @@ export function useQuestionData() {
 
     const myAnswers = new Map<string, AnswerInfo>(
       (answers ?? [])
-        .filter((a) => a.user_id === user.id)
+        .filter((a) => a.user_id === userId)
         .map((a) => [a.game_id, { option: a.selected_option as 'a' | 'b', reason: a.reason ?? null }]),
     );
     const partnerAnswers = new Map<string, AnswerInfo>(
       (answers ?? [])
-        .filter((a) => a.user_id !== user.id)
+        .filter((a) => a.user_id !== userId)
         .map((a) => [a.game_id, { option: a.selected_option as 'a' | 'b', reason: a.reason ?? null }]),
     );
 
@@ -118,8 +99,8 @@ export function useQuestionData() {
 
     setData({
       games: todayGame ? [todayGame, ...otherGames] : otherGames,
-      myNickname: myProfile.couple_nickname ?? myProfile.name ?? '',
-      partnerNickname: partner?.couple_nickname ?? partner?.name ?? null,
+      myNickname,
+      partnerNickname,
       coupleId,
     });
     setLoading(false);
