@@ -61,17 +61,16 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
 
   const pool = genre === '전체' ? items : items.filter((i) => i.genre === genre);
 
-  const categoryImage = genreImages[category.id];
-
   const pick = () => {
     if (pool.length === 0 || picking) return;
     setPicking(true);
     setPicked(null);
     const random = pool[Math.floor(Math.random() * pool.length)];
+    const imageUrl = random.genre ? genreImages[random.genre] : undefined;
     const show = () => { setPicked(random); setPicking(false); };
-    if (categoryImage) {
+    if (imageUrl) {
       const start = Date.now();
-      Image.prefetch(categoryImage).finally(() => {
+      Image.prefetch(imageUrl).finally(() => {
         const elapsed = Date.now() - start;
         setTimeout(show, Math.max(0, 800 - elapsed));
       });
@@ -79,6 +78,8 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
       setTimeout(show, 800);
     }
   };
+
+  const genreImage = picked?.genre ? genreImages[picked.genre] : undefined;
 
   return (
     <View className="flex-1">
@@ -132,10 +133,10 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
               <Text className="text-sm text-moa-muted">고르는 중...</Text>
             </View>
           ) : picked ? (
-            categoryImage ? (
+            genreImage ? (
               <ImageBackground
-                source={{ uri: categoryImage }}
-                className="flex-1 w-full items-center justify-center"
+                source={{ uri: genreImage }}
+                style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' }}
                 resizeMode="cover"
               >
                 <View className="absolute inset-0 bg-black/30" />
