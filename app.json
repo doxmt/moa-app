@@ -14,7 +14,11 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.moa.app"
+      "bundleIdentifier": "com.moa.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "스토리 사진을 갤러리에 저장합니다.",
+        "NSPhotoLibraryAddUsageDescription": "스토리 사진을 갤러리에 저장합니다."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +28,14 @@
       "package": "com.moa.app"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "스토리 사진을 갤러리에 저장합니다.",
+          "savePhotosPermission": "스토리 사진을 갤러리에 저장합니다."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
