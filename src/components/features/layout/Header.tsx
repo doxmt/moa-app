@@ -1,4 +1,4 @@
-import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Bell, LogOut, Settings } from 'lucide-react-native';
@@ -14,7 +14,7 @@ export default function Header() {
     <View style={{ paddingTop: top }} className="border-b border-[#F0F0F0] bg-[#FAFAFA]">
       <View className="flex-row items-center justify-between px-5 py-4">
         <View className="flex-row items-center gap-2">
-          <Image source={require('../../../../assets/images/icon.png')} style={{ width: 28, height: 28 }} />
+          <Image source={require('../../../../assets/images/icon.png')} style={styles.logo} />
           <Text className="text-base font-bold text-[#222222]">모아</Text>
         </View>
         <View className="flex-row items-center gap-3">
@@ -32,3 +32,10 @@ export default function Header() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  logo: {
+    width: 28,
+    height: 28,
+  },
+});
