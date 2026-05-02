@@ -3,11 +3,9 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Image,
-  ImageBackground,
   ActivityIndicator,
 } from 'react-native';
-import { getRecommendations, getGenreImages, Recommendation } from '@/lib/supabase/recommendations';
+import { getRecommendations, Recommendation } from '@/lib/supabase/recommendations';
 
 type Category = {
   id: string;
@@ -45,18 +43,13 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
   const [genre, setGenre] = useState('전체');
   const [picked, setPicked] = useState<Recommendation | null>(null);
   const [items, setItems] = useState<Recommendation[]>([]);
-  const [genreImages, setGenreImages] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [picking, setPicking] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      getRecommendations(category.id),
-      getGenreImages(category.id),
-    ]).then(([data, images]) => {
-      setItems(data);
-      setGenreImages(images);
-    }).finally(() => setLoading(false));
+    getRecommendations(category.id)
+      .then(setItems)
+      .finally(() => setLoading(false));
   }, [category.id]);
 
   const pool = genre === '전체' ? items : items.filter((i) => i.genre === genre);
@@ -66,20 +59,8 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
     setPicking(true);
     setPicked(null);
     const random = pool[Math.floor(Math.random() * pool.length)];
-    const imageUrl = random.genre ? genreImages[random.genre] : undefined;
-    const show = () => { setPicked(random); setPicking(false); };
-    if (imageUrl) {
-      const start = Date.now();
-      Image.prefetch(imageUrl).finally(() => {
-        const elapsed = Date.now() - start;
-        setTimeout(show, Math.max(0, 800 - elapsed));
-      });
-    } else {
-      setTimeout(show, 800);
-    }
+    setTimeout(() => { setPicked(random); setPicking(false); }, 800);
   };
-
-  const genreImage = picked?.genre ? genreImages[picked.genre] : undefined;
 
   return (
     <View className="flex-1">
@@ -123,8 +104,8 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
           </View>
         )}
 
-        {/* 결과 카드 */}
-        <View className="flex-1 rounded-3xl overflow-hidden border border-moa-border bg-white items-center justify-center">
+        {/* 결과 */}
+        <View className="flex-1 items-center justify-center">
           {loading ? (
             <ActivityIndicator color="#CCCCCC" />
           ) : picking ? (
@@ -133,36 +114,16 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
               <Text className="text-sm text-moa-muted">고르는 중...</Text>
             </View>
           ) : picked ? (
-            genreImage ? (
-              <ImageBackground
-                source={{ uri: genreImage }}
-                className="flex-1 w-full items-center justify-center"
-                resizeMode="cover"
-              >
-                <View className="absolute inset-0 bg-black/30" />
-                <View className="items-center gap-3">
-                  <Text className="text-4xl font-bold text-center text-white px-6" style={{ textShadowColor: 'rgba(0,0,0,0.3)', textShadowRadius: 4 }}>
-                    {picked.name}
-                  </Text>
-                  {picked.genre && (
-                    <View className="px-3 py-1 rounded-full bg-white/80">
-                      <Text className="text-xs text-moa-text">{picked.genre}</Text>
-                    </View>
-                  )}
+            <View className="items-center gap-4 px-6">
+              <Text className="text-4xl font-bold text-center text-moa-text">
+                {picked.name}
+              </Text>
+              {picked.genre && (
+                <View className="px-3 py-1 rounded-full bg-[#F5F5F5]">
+                  <Text className="text-xs text-moa-sub">{picked.genre}</Text>
                 </View>
-              </ImageBackground>
-            ) : (
-              <View className="items-center gap-3">
-                <Text className="text-4xl font-bold text-center text-moa-text px-6">
-                  {picked.name}
-                </Text>
-                {picked.genre && (
-                  <View className="px-3 py-1 rounded-full bg-[#F5F5F5]">
-                    <Text className="text-xs text-moa-sub">{picked.genre}</Text>
-                  </View>
-                )}
-              </View>
-            )
+              )}
+            </View>
           ) : (
             <View className="items-center gap-3">
               <Text className="text-5xl">🎲</Text>
