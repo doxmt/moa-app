@@ -186,11 +186,11 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
         {/* 뽑기 버튼 */}
         <TouchableOpacity
           onPress={pick}
-          disabled={loading || picking}
+          disabled={loading || picking || (picked !== null && !!genreImage && !imageReady)}
           className="w-full py-4 rounded-2xl bg-moa-text items-center disabled:opacity-40"
         >
           <Text className="text-white text-sm font-semibold">
-            {picked ? '다시 뽑기 🎲' : '뽑기 🎲'}
+            {picked && (imageReady || !genreImage) ? '다시 뽑기 🎲' : '뽑기 🎲'}
           </Text>
         </TouchableOpacity>
       </View>
