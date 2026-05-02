@@ -105,7 +105,7 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
               <TouchableOpacity
                 key={g}
                 onPress={() => { setGenre(g); setPicked(null); }}
-                className={`flex-1 items-center px-4 py-1.5 rounded-full border ${
+                className={`px-4 py-1.5 rounded-full border ${
                   genre === g
                     ? 'bg-moa-text border-moa-text'
                     : 'bg-white border-moa-border'
