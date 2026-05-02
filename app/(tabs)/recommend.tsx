@@ -61,16 +61,17 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
 
   const pool = genre === '전체' ? items : items.filter((i) => i.genre === genre);
 
+  const categoryImage = genreImages[category.id];
+
   const pick = () => {
     if (pool.length === 0 || picking) return;
     setPicking(true);
     setPicked(null);
     const random = pool[Math.floor(Math.random() * pool.length)];
-    const imageUrl = random.genre ? genreImages[random.genre] : undefined;
     const show = () => { setPicked(random); setPicking(false); };
-    if (imageUrl) {
+    if (categoryImage) {
       const start = Date.now();
-      Image.prefetch(imageUrl).finally(() => {
+      Image.prefetch(categoryImage).finally(() => {
         const elapsed = Date.now() - start;
         setTimeout(show, Math.max(0, 800 - elapsed));
       });
@@ -78,8 +79,6 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
       setTimeout(show, 800);
     }
   };
-
-  const genreImage = picked?.genre ? genreImages[picked.genre] : undefined;
 
   return (
     <View className="flex-1">
@@ -105,7 +104,7 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
               <TouchableOpacity
                 key={g}
                 onPress={() => { setGenre(g); setPicked(null); }}
-                className={`px-3 py-1.5 rounded-full border ${
+                className={`px-4 py-1.5 rounded-full border ${
                   genre === g
                     ? 'bg-moa-text border-moa-text'
                     : 'bg-white border-moa-border'
@@ -133,9 +132,9 @@ function DetailPage({ category, onBack }: { category: Category; onBack: () => vo
               <Text className="text-sm text-moa-muted">고르는 중...</Text>
             </View>
           ) : picked ? (
-            genreImage ? (
+            categoryImage ? (
               <ImageBackground
-                source={{ uri: genreImage }}
+                source={{ uri: categoryImage }}
                 className="flex-1 w-full items-center justify-center"
                 resizeMode="cover"
               >
