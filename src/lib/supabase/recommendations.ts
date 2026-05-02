@@ -21,5 +21,5 @@ export async function getGenreImages(category: string): Promise<Record<string, s
     .select('genre, image_url')
     .eq('category', category);
   if (!data) return {};
-  return Object.fromEntries(data.map((row: { genre: string; image_url: string }) => [row.genre, row.image_url]));
+  return Object.fromEntries(data.map((row: { genre: string; image_url: string }) => [row.genre, row.image_url.replace(/\n/g, '')]));
 }
