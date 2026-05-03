@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 
 import { supabase } from '@/lib/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
+import { formatRefreshMinutes } from '@/utils/questionDay';
 
 type Profile = {
   name: string;
@@ -64,35 +65,46 @@ export default function SettingsScreen() {
   const { top } = useSafeAreaInsets();
   const { signOut } = useAuthStore();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [refreshMinutes, setRefreshMinutes] = useState(0);
 
-  useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  useFocusEffect(
+    useCallback(() => {
+      async function load() {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-      const { data: myProfile } = await supabase
-        .from('profiles')
-        .select('name, couple_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!myProfile) return;
-
-      let partnerName: string | null = null;
-      if (myProfile.couple_id) {
-        const { data: partner } = await supabase
+        const { data: myProfile } = await supabase
           .from('profiles')
-          .select('name')
-          .eq('couple_id', myProfile.couple_id)
-          .neq('user_id', user.id)
+          .select('name, couple_id')
+          .eq('user_id', user.id)
           .single();
-        partnerName = partner?.name ?? null;
-      }
 
-      setProfile({ name: myProfile.name, partnerName });
-    }
-    load();
-  }, []);
+        if (!myProfile) return;
+
+        let partnerName: string | null = null;
+        if (myProfile.couple_id) {
+          const [{ data: partner }, { data: couple }] = await Promise.all([
+            supabase
+              .from('profiles')
+              .select('name')
+              .eq('couple_id', myProfile.couple_id)
+              .neq('user_id', user.id)
+              .single(),
+            supabase
+              .from('couples')
+              .select('question_refresh_minutes')
+              .eq('id', myProfile.couple_id)
+              .single(),
+          ]);
+          partnerName = partner?.name ?? null;
+          setRefreshMinutes(couple?.question_refresh_minutes ?? 0);
+        }
+
+        setProfile({ name: myProfile.name, partnerName });
+      }
+      load();
+    }, [])
+  );
 
   return (
     <View className="flex-1 bg-moa-bg" style={{ paddingTop: top }}>
@@ -126,6 +138,11 @@ export default function SettingsScreen() {
         </Section>
 
         <Section title="앱">
+          <Row
+            label="질문 갱신 시각"
+            value={formatRefreshMinutes(refreshMinutes)}
+            onPress={() => router.push('/settings/question-hour')}
+          />
           <Row label="알림 설정" onPress={() => {}} />
           <Row label="문의하기" onPress={() => {}} />
           <Row label="버전 정보" value="1.0.0" onPress={() => {}} />

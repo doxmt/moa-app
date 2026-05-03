@@ -3,6 +3,7 @@ import { useFocusEffect } from 'expo-router';
 
 import { supabase } from '@/lib/supabase/client';
 import { fetchCoupleBasic } from '@/lib/supabase/profile';
+import { getQuestionDayIndex } from '@/utils/questionDay';
 import { deleteOldCouplePhotos, getLatestPhotoUrl, uploadCouplePhoto } from '@/lib/supabase/photo';
 
 type HomeData = {
@@ -43,7 +44,7 @@ export function useHomeData() {
 
       const { data: coupleData } = await supabase
         .from('couples')
-        .select('anniversary')
+        .select('anniversary, question_refresh_minutes')
         .eq('id', coupleId)
         .single();
 
@@ -60,7 +61,8 @@ export function useHomeData() {
         .select('id, question, option_a, option_b');
 
       if (games && games.length > 0) {
-        const idx = Math.floor(Date.now() / 86400000) % games.length;
+        const refreshMinutes = coupleData?.question_refresh_minutes ?? 0;
+        const idx = getQuestionDayIndex(refreshMinutes) % games.length;
         const game = games[idx];
 
         const [{ data: myAnswer }, { data: partnerAnswer }] = await Promise.all([

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabase/client';
 import { fetchCoupleBasic } from '@/lib/supabase/profile';
+import { getQuestionDayIndex } from '@/utils/questionDay';
 
 export type GameItem = {
   id: string;
@@ -57,7 +58,13 @@ export function useQuestionData() {
       return;
     }
 
-    const todayIdx = Math.floor(Date.now() / 86400000) % games.length;
+    const { data: coupleRefresh } = await supabase
+      .from('couples')
+      .select('question_refresh_minutes')
+      .eq('id', coupleId)
+      .single();
+    const refreshMinutes = coupleRefresh?.question_refresh_minutes ?? 0;
+    const todayIdx = getQuestionDayIndex(refreshMinutes) % games.length;
 
     const { data: answers } = await supabase
       .from('game_answers')
