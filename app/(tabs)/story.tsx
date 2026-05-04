@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 
 import { useStoryData } from '@/hooks/useStoryData';
 import { Story } from '@/lib/supabase/stories';
-import { styles } from './story.styles';
+import { styles } from '@/components/features/story/story.styles';
 import StoryUploadModal from '@/components/features/story/StoryUploadModal';
 import StoryViewer from '@/components/features/story/StoryViewer';
 import { dateToDateStr } from '@/utils/date';
