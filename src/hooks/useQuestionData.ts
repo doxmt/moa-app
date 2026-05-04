@@ -26,6 +26,7 @@ type QuestionData = {
 export function useQuestionData() {
   const [data, setData] = useState<QuestionData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
     load();
@@ -35,10 +36,41 @@ export function useQuestionData() {
     setLoading(true);
 
     const couple = await fetchCoupleBasic();
+
     if (!couple) {
+      // 미연결 시 오늘 질문만 보여주기 (답변 불가)
+      const { data: games } = await supabase
+        .from('balance_games')
+        .select('id, question, option_a, option_b')
+        .order('created_at', { ascending: true });
+
+      if (games && games.length > 0) {
+        const todayIdx = getQuestionDayIndex(0) % games.length;
+        const g = games[todayIdx];
+        setData({
+          games: [{
+            id: g.id,
+            question: g.question,
+            optionA: g.option_a,
+            optionB: g.option_b,
+            myPicked: null,
+            myReason: null,
+            partnerPicked: null,
+            partnerReason: null,
+            isToday: true,
+          }],
+          myNickname: '',
+          partnerNickname: null,
+          coupleId: '',
+        });
+      }
+
+      setIsConnected(false);
       setLoading(false);
       return;
     }
+
+    setIsConnected(true);
 
     const { userId, coupleId, myNickname, partnerNickname } = couple;
 
@@ -162,5 +194,5 @@ export function useQuestionData() {
     });
   };
 
-  return { data, loading, submitAnswer, saveReason };
+  return { data, loading, isConnected, submitAnswer, saveReason };
 }

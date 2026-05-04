@@ -11,6 +11,7 @@ type State = {
   stories: Story[];
   loading: boolean;
   submitting: boolean;
+  isConnected: boolean;
 };
 
 export function useStoryData() {
@@ -22,6 +23,7 @@ export function useStoryData() {
     stories: [],
     loading: true,
     submitting: false,
+    isConnected: false,
   });
 
   useEffect(() => {
@@ -42,6 +44,7 @@ export function useStoryData() {
         partnerNickname: couple.partnerNickname ?? '상대방',
         stories,
         loading: false,
+        isConnected: true,
       }));
     }
     init();
@@ -100,6 +103,7 @@ export function useStoryData() {
     stories: state.stories,
     loading: state.loading,
     submitting: state.submitting,
+    isConnected: state.isConnected,
     uploadStory,
     editCaption,
     removeStory,

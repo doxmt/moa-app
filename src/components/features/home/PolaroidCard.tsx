@@ -1,17 +1,28 @@
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { ImageIcon } from 'lucide-react-native';
+import { ImageIcon, Link2 } from 'lucide-react-native';
 
 interface Props {
   photoUrl: string | null | undefined;
   uploading: boolean;
   onPress: () => void;
+  notConnected?: boolean;
 }
 
-export default function PolaroidCard({ photoUrl, uploading, onPress }: Props) {
+export default function PolaroidCard({ photoUrl, uploading, onPress, notConnected }: Props) {
   return (
     <View className="flex-1 items-center justify-center w-full mt-3">
       <TouchableOpacity onPress={onPress} style={styles.polaroid} activeOpacity={0.9}>
-        {photoUrl ? (
+        {notConnected ? (
+          <View className="flex-1 bg-[#F5F5F5] items-center justify-center gap-3 px-6">
+            <Link2 size={36} color="#CCCCCC" strokeWidth={1.5} />
+            <Text className="text-xs text-[#AAAAAA] text-center leading-5">
+              연결하면 함께{'\n'}사진과 추억을 기록할 수 있어요
+            </Text>
+            <View className="px-4 py-2 rounded-full bg-[#222222]">
+              <Text className="text-xs text-white font-medium">연결하기</Text>
+            </View>
+          </View>
+        ) : photoUrl ? (
           <Image source={{ uri: photoUrl }} style={styles.image} resizeMode="cover" />
         ) : (
           <View className="flex-1 bg-[#F0F0F0] items-center justify-center gap-2">

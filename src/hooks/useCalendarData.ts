@@ -26,6 +26,7 @@ type State = {
   submitting: boolean
   year: number
   month: number
+  isConnected: boolean
 }
 
 function makeVirtualEvent(
@@ -71,6 +72,7 @@ export function useCalendarData() {
     submitting: false,
     year: today.getFullYear(),
     month: today.getMonth() + 1,
+    isConnected: false,
   })
 
   useEffect(() => {
@@ -84,7 +86,10 @@ export function useCalendarData() {
         .eq('user_id', user.id)
         .single()
 
-      if (!profile?.couple_id) return
+      if (!profile?.couple_id) {
+        setState((prev) => ({ ...prev, loading: false, isConnected: false }))
+        return
+      }
 
       const [{ data: partner }, { data: couple }] = await Promise.all([
         supabase
@@ -113,6 +118,7 @@ export function useCalendarData() {
         myBirthday: toMMDD(profile.birthday ?? null),
         partnerBirthday: toMMDD(partner?.birthday ?? null),
         anniversary: couple?.anniversary ?? null,
+        isConnected: true,
       }))
     }
     init()
@@ -274,6 +280,7 @@ export function useCalendarData() {
     eventsByDate,
     loading: state.loading,
     submitting: state.submitting,
+    isConnected: state.isConnected,
     goToPrevMonth,
     goToNextMonth,
     createEvent,

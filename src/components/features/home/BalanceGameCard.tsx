@@ -13,9 +13,10 @@ interface Props {
   partnerNickname: string | null | undefined;
   onSubmitAnswer: (opt: 'a' | 'b') => void;
   onNavigateToQuestion: () => void;
+  readOnly?: boolean;
 }
 
-export default function BalanceGameCard({ game, partnerNickname, onSubmitAnswer, onNavigateToQuestion }: Props) {
+export default function BalanceGameCard({ game, partnerNickname, onSubmitAnswer, onNavigateToQuestion, readOnly }: Props) {
   return (
     <View style={styles.card}>
       <View className="flex-row items-center justify-between mb-4">
@@ -39,9 +40,9 @@ export default function BalanceGameCard({ game, partnerNickname, onSubmitAnswer,
               return (
                 <TouchableOpacity
                   key={opt}
-                  onPress={() => onSubmitAnswer(opt)}
-                  style={[styles.optionButton, isPicked ? styles.optionPicked : styles.optionDefault]}
-                  activeOpacity={0.8}
+                  onPress={() => !readOnly && onSubmitAnswer(opt)}
+                  style={[styles.optionButton, isPicked ? styles.optionPicked : styles.optionDefault, readOnly && { opacity: 0.5 }]}
+                  activeOpacity={readOnly ? 1 : 0.8}
                 >
                   <Text
                     style={isPicked ? styles.optionTextPicked : styles.optionTextDefault}

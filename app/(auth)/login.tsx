@@ -120,14 +120,17 @@ export default function LoginScreen() {
       const parsed = Linking.parse(result.url);
       let accessToken = parsed.queryParams?.access_token as string | undefined;
       let refreshToken = parsed.queryParams?.refresh_token as string | undefined;
+      let errorMsg = parsed.queryParams?.error_description as string | undefined;
 
       if (!accessToken && result.url.includes('#')) {
         const hash = result.url.split('#')[1] ?? '';
         const params = new URLSearchParams(hash);
         accessToken = params.get('access_token') ?? undefined;
         refreshToken = params.get('refresh_token') ?? undefined;
+        errorMsg = errorMsg ?? params.get('error_description') ?? undefined;
       }
 
+      if (errorMsg) throw new Error(errorMsg);
       if (!accessToken || !refreshToken) throw new Error('토큰을 받지 못했습니다.');
 
       const { error: sessionError } = await supabase.auth.setSession({
