@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
+import { useRouter } from 'expo-router'
 import { useCalendarData, DisplayEvent } from '@/hooks/useCalendarData'
 import CalendarGrid from '@/components/features/calendar/CalendarGrid'
 import MilestoneList, { MilestoneItem } from '@/components/features/calendar/MilestoneList'
@@ -27,6 +28,7 @@ function formatTimeLabel(event: DisplayEvent) {
 }
 
 export default function CalendarScreen() {
+  const router = useRouter()
   const {
     year,
     month,
@@ -39,6 +41,7 @@ export default function CalendarScreen() {
     eventsByDate,
     loading,
     submitting,
+    isConnected,
     goToPrevMonth,
     goToNextMonth,
     createEvent,
@@ -176,6 +179,19 @@ export default function CalendarScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* 미연결 배너 */}
+      {!isConnected && !loading && (
+        <View style={styles.notConnectedBanner}>
+          <Text style={styles.notConnectedText}>연결하면 함께 일정을 관리할 수 있어요</Text>
+          <TouchableOpacity
+            onPress={() => router.push('/settings/connect' as never)}
+            style={styles.connectButton}
+          >
+            <Text style={styles.connectButtonText}>연결하기</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* 달력 그리드 */}
       <CalendarGrid
         rows={rows}
@@ -210,9 +226,11 @@ export default function CalendarScreen() {
             <Text className="text-sm font-semibold text-moa-text">
               {selectedDate.slice(5).replace('-', '월 ')}일
             </Text>
-            <TouchableOpacity onPress={() => openForm(selectedDate)} style={styles.addButton}>
-              <Text style={styles.addButtonText}>+ 일정 추가</Text>
-            </TouchableOpacity>
+            {isConnected && (
+              <TouchableOpacity onPress={() => openForm(selectedDate)} style={styles.addButton}>
+                <Text style={styles.addButtonText}>+ 일정 추가</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} style={styles.selectedDateScroll}>
@@ -271,6 +289,33 @@ export default function CalendarScreen() {
 }
 
 const styles = StyleSheet.create({
+  notConnectedBanner: {
+    backgroundColor: '#FFF9F0',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+    alignItems: 'center',
+    gap: 10,
+  },
+  notConnectedText: {
+    fontSize: 12,
+    color: '#888888',
+    textAlign: 'center',
+  },
+  connectButton: {
+    backgroundColor: '#222222',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 7,
+  },
+  connectButtonText: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: '600',
+  },
   addButton: {
     borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8,
     paddingHorizontal: 12, paddingVertical: 4,

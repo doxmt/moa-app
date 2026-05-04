@@ -8,10 +8,10 @@ import { useHomeData } from '@/hooks/useHomeData';
 import LoadingView from '@/components/ui/LoadingView';
 import PolaroidCard from '@/components/features/home/PolaroidCard';
 import BalanceGameCard from '@/components/features/home/BalanceGameCard';
-import { Text, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 
 export default function HomeScreen() {
-  const { data, loading, uploading, submitAnswer, uploadPhoto } = useHomeData();
+  const { data, loading, uploading, previewGame, submitAnswer, uploadPhoto } = useHomeData();
   const router = useRouter();
 
   const handlePhotoPress = useCallback(async () => {
@@ -81,17 +81,19 @@ export default function HomeScreen() {
           <PolaroidCard
             photoUrl={data?.latestPhotoUrl}
             uploading={uploading}
-            onPress={handlePhotoPress}
+            onPress={!data ? () => router.push('/settings/connect' as never) : handlePhotoPress}
+            notConnected={!data}
           />
         </View>
 
         {/* 밸런스게임 카드 */}
         <View className="mt-4">
           <BalanceGameCard
-            game={data?.balanceGame ?? null}
+            game={data?.balanceGame ?? previewGame}
             partnerNickname={data?.partnerNickname}
             onSubmitAnswer={submitAnswer}
             onNavigateToQuestion={() => router.push('/(tabs)/question')}
+            readOnly={!data}
           />
         </View>
       </View>

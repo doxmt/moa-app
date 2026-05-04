@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
+import { Check, ChevronLeft, ChevronRight, Copy } from 'lucide-react-native';
 
 import { supabase } from '@/lib/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
@@ -66,6 +67,11 @@ export default function SettingsScreen() {
   const { signOut } = useAuthStore();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [refreshMinutes, setRefreshMinutes] = useState(0);
+  const [coupleId, setCoupleId] = useState<string | null>(null);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -83,6 +89,7 @@ export default function SettingsScreen() {
 
         let partnerName: string | null = null;
         if (myProfile.couple_id) {
+          setCoupleId(myProfile.couple_id);
           const [{ data: partner }, { data: couple }] = await Promise.all([
             supabase
               .from('profiles')
@@ -92,12 +99,16 @@ export default function SettingsScreen() {
               .single(),
             supabase
               .from('couples')
-              .select('question_refresh_minutes')
+              .select('question_refresh_minutes, invite_code')
               .eq('id', myProfile.couple_id)
               .single(),
           ]);
           partnerName = partner?.name ?? null;
           setRefreshMinutes(couple?.question_refresh_minutes ?? 0);
+          setInviteCode(couple?.invite_code ?? null);
+        } else {
+          setCoupleId(null);
+          setInviteCode(null);
         }
 
         setProfile({ name: myProfile.name, partnerName });
@@ -105,6 +116,39 @@ export default function SettingsScreen() {
       load();
     }, [])
   );
+
+  const handleDisconnect = async () => {
+    if (!coupleId) return;
+    setDisconnecting(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setDisconnecting(false); return; }
+
+    // 내 couple_id를 null로
+    await supabase
+      .from('profiles')
+      .update({ couple_id: null })
+      .eq('user_id', user.id);
+
+    // 상대방도 이미 끊었는지 확인 (couple_id가 남아있는 파트너가 없으면)
+    const { data: stillConnected } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('couple_id', coupleId)
+      .single();
+
+    if (!stillConnected) {
+      // 둘 다 끊김 → 30일 후 만료
+      await supabase
+        .from('couples')
+        .update({ expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() })
+        .eq('id', coupleId);
+    }
+
+    setDisconnecting(false);
+    setShowDisconnectDialog(false);
+    router.replace('/(tabs)/home');
+  };
 
   return (
     <View className="flex-1 bg-moa-bg" style={{ paddingTop: top }}>
@@ -114,6 +158,7 @@ export default function SettingsScreen() {
         </TouchableOpacity>
         <Text className="text-lg font-bold text-moa-text">설정</Text>
       </View>
+
       <View className="flex-1 px-4">
         <Section title="프로필">
           <Row
@@ -149,10 +194,77 @@ export default function SettingsScreen() {
         </Section>
 
         <Section title="계정">
+          <Row label="내 정보" onPress={() => router.push('/settings/account')} />
+          {coupleId && (
+            <Row label="커플 연결 끊기" onPress={() => setShowDisconnectDialog(true)} danger />
+          )}
           <Row label="로그아웃" onPress={signOut} danger />
-          <Row label="회원 탈퇴" onPress={() => {}} danger />
         </Section>
       </View>
+
+      {/* 연결 끊기 다이얼로그 */}
+      <Modal visible={showDisconnectDialog} transparent animationType="fade">
+        <View className="flex-1 items-center justify-center" style={styles.overlay}>
+          <View className="bg-white rounded-2xl mx-6 p-6 gap-4 w-full">
+            <Text className="text-base font-bold text-moa-text text-center">
+              커플 연결을 끊을까요?
+            </Text>
+            <Text className="text-xs text-moa-sub text-center leading-5">
+              나중에 재연결하려면 초대 코드가 필요해요.{'\n'}
+              코드를 저장해두세요.{'\n\n'}
+              <Text style={{ textDecorationLine: 'underline' }}>
+                두 분 모두 연결을 끊으면 30일 후{'\n'}
+                모든 데이터가 삭제돼요.
+              </Text>
+            </Text>
+
+            {inviteCode && (
+              <View className="bg-moa-bg rounded-xl px-4 py-3 items-center gap-2">
+                <Text className="text-xs text-moa-muted">초대 코드</Text>
+                <Text className="text-xl font-bold text-moa-text tracking-widest">{inviteCode}</Text>
+                <TouchableOpacity
+                  onPress={async () => {
+                    await Clipboard.setStringAsync(inviteCode!);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  activeOpacity={0.7}
+                  className="flex-row items-center gap-1"
+                >
+                  {copied
+                    ? <Check size={12} color="#888888" strokeWidth={2} />
+                    : <Copy size={12} color="#888888" strokeWidth={2} />
+                  }
+                  <Text className="text-xs text-moa-sub">{copied ? '복사됨' : '복사하기'}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <View className="flex-row gap-2">
+              <TouchableOpacity
+                onPress={() => setShowDisconnectDialog(false)}
+                activeOpacity={0.7}
+                className="flex-1 py-3 rounded-xl items-center"
+                style={styles.cancelBtn}
+              >
+                <Text className="text-sm text-moa-sub">취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleDisconnect}
+                disabled={disconnecting}
+                activeOpacity={0.8}
+                className="flex-1 py-3 rounded-xl items-center bg-red-500"
+                style={{ opacity: disconnecting ? 0.5 : 1 }}
+              >
+                <Text className="text-sm text-white font-medium">
+                  {disconnecting ? '처리 중...' : '연결 끊기'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -161,5 +273,12 @@ const styles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: '#F0F0F0',
+  },
+  overlay: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  cancelBtn: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
 });

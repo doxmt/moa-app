@@ -26,6 +26,7 @@ export function useHomeData() {
   const [data, setData] = useState<HomeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [previewGame, setPreviewGame] = useState<HomeData['balanceGame']>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -36,6 +37,14 @@ export function useHomeData() {
   async function load() {
       const couple = await fetchCoupleBasic();
       if (!couple) {
+        const { data: games } = await supabase
+          .from('balance_games')
+          .select('id, question, option_a, option_b')
+          .order('created_at', { ascending: true });
+        if (games && games.length > 0) {
+          const g = games[getQuestionDayIndex(0) % games.length];
+          setPreviewGame({ id: g.id, question: g.question, optionA: g.option_a, optionB: g.option_b, myPicked: null, partnerPicked: null });
+        }
         setLoading(false);
         return;
       }
@@ -138,5 +147,5 @@ export function useHomeData() {
     );
   };
 
-  return { data, loading, uploading, submitAnswer, uploadPhoto };
+  return { data, loading, uploading, previewGame, submitAnswer, uploadPhoto };
 }

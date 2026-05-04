@@ -1,7 +1,8 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { useRouter } from 'expo-router';
 
 import { useStoryData } from '@/hooks/useStoryData';
 import { Story } from '@/lib/supabase/stories';
@@ -110,6 +111,7 @@ function StorySection({
 }
 
 export default function StoryScreen() {
+  const router = useRouter();
   const {
     userId,
     myNickname,
@@ -117,6 +119,7 @@ export default function StoryScreen() {
     stories,
     loading,
     submitting,
+    isConnected,
     uploadStory,
     editCaption,
     removeStory,
@@ -152,8 +155,9 @@ export default function StoryScreen() {
       <View className="flex-row items-center justify-between px-5 py-4">
         <Text className="text-base font-semibold text-moa-text">스토리</Text>
         <TouchableOpacity
-          onPress={pickImage}
-          className="w-8 h-8 rounded-full bg-moa-text items-center justify-center"
+          onPress={isConnected ? pickImage : undefined}
+          className="w-8 h-8 rounded-full items-center justify-center"
+          style={{ backgroundColor: isConnected ? '#222222' : '#CCCCCC' }}
         >
           <Svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="white" strokeWidth={2.5}>
             <Path d="M12 5v14M5 12h14" strokeLinecap="round" />
@@ -165,6 +169,19 @@ export default function StoryScreen() {
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color="#CCCCCC" />
+        </View>
+      ) : !isConnected ? (
+        <View className="flex-1 items-center justify-center px-8" style={{ gap: 12 }}>
+          <Text style={storyBannerStyles.emptyTitle}>연결 후 스토리를 기록해보세요</Text>
+          <Text style={storyBannerStyles.emptyDesc}>
+            연결하면 서로의 일상을 사진으로 공유할 수 있어요
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push('/settings/connect' as never)}
+            style={storyBannerStyles.connectButton}
+          >
+            <Text style={storyBannerStyles.connectButtonText}>연결하기</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
@@ -201,3 +218,30 @@ export default function StoryScreen() {
     </View>
   );
 }
+
+const storyBannerStyles = StyleSheet.create({
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#222222',
+    textAlign: 'center',
+  },
+  emptyDesc: {
+    fontSize: 13,
+    color: '#888888',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  connectButton: {
+    backgroundColor: '#222222',
+    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 9,
+    marginTop: 4,
+  },
+  connectButtonText: {
+    fontSize: 13,
+    color: 'white',
+    fontWeight: '600',
+  },
+});

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { useQuestionData } from '@/hooks/useQuestionData';
 import LoadingView from '@/components/ui/LoadingView';
@@ -15,7 +16,8 @@ import EmptyState from '@/components/ui/EmptyState';
 import QuestionCard from '@/components/features/question/QuestionCard';
 
 export default function QuestionScreen() {
-  const { data, loading, submitAnswer, saveReason } = useQuestionData();
+  const router = useRouter();
+  const { data, loading, isConnected, submitAnswer, saveReason } = useQuestionData();
   const [showPast, setShowPast] = useState(false);
 
   if (loading) return <LoadingView />;
@@ -36,7 +38,21 @@ export default function QuestionScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>밸런스 게임</Text>
+        <Text style={styles.title}>오늘의 질문</Text>
+
+        {!isConnected && (
+          <View className="bg-moa-bg border border-moa-border rounded-2xl px-4 py-3" style={{ gap: 10, alignItems: 'center' }}>
+            <Text className="text-xs text-moa-muted text-center leading-5">
+              연결하면 서로의 선택과 의견을 볼 수 있어요
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/settings/connect' as never)}
+              style={styles.connectButton}
+            >
+              <Text style={styles.connectButtonText}>연결하기</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {todayGame && (
           <QuestionCard
@@ -45,6 +61,7 @@ export default function QuestionScreen() {
             partnerNickname={partnerNickname}
             onSubmitAnswer={submitAnswer}
             onSaveReason={saveReason}
+            readOnly={!isConnected}
           />
         )}
 
@@ -88,4 +105,6 @@ const styles = StyleSheet.create({
   toggleText: { fontSize: 14, fontWeight: '500', color: '#888888' },
   toggleArrow: { fontSize: 18, color: '#888888', transform: [{ rotate: '90deg' }] },
   toggleArrowUp: { transform: [{ rotate: '-90deg' }] },
+  connectButton: { backgroundColor: '#222222', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 7 },
+  connectButtonText: { fontSize: 12, color: 'white', fontWeight: '600' },
 });

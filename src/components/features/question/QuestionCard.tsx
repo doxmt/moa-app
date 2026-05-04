@@ -9,9 +9,10 @@ interface Props {
   partnerNickname: string | null | undefined;
   onSubmitAnswer: (gameId: string, opt: 'a' | 'b') => Promise<void>;
   onSaveReason: (gameId: string, reason: string) => Promise<void>;
+  readOnly?: boolean;
 }
 
-export default function QuestionCard({ game, myNickname, partnerNickname, onSubmitAnswer, onSaveReason }: Props) {
+export default function QuestionCard({ game, myNickname, partnerNickname, onSubmitAnswer, onSaveReason, readOnly }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
 
@@ -62,9 +63,9 @@ export default function QuestionCard({ game, myNickname, partnerNickname, onSubm
           return (
             <TouchableOpacity
               key={opt}
-              onPress={() => onSubmitAnswer(game.id, opt)}
-              style={[styles.optionBtn, isMyPick ? styles.optionBtnActive : styles.optionBtnInactive]}
-              activeOpacity={0.7}
+              onPress={() => !readOnly && onSubmitAnswer(game.id, opt)}
+              style={[styles.optionBtn, isMyPick ? styles.optionBtnActive : styles.optionBtnInactive, readOnly && { opacity: 0.5 }]}
+              activeOpacity={readOnly ? 1 : 0.7}
             >
               <Text style={[styles.optionText, isMyPick && styles.optionTextActive]}>
                 {label}
