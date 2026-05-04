@@ -28,12 +28,10 @@ function AuthGate() {
 
     if (profileComplete === null) return;
 
-    if (inAuth || inOnboarding) {
-      if (!profileComplete) {
-        router.replace('/(onboarding)');
-      } else {
-        router.replace('/(tabs)/home');
-      }
+    if (inAuth) {
+      router.replace(profileComplete ? '/(tabs)/home' : '/(onboarding)');
+    } else if (inOnboarding && profileComplete) {
+      router.replace('/(tabs)/home');
     }
   }, [session, initialized, profileComplete, segments]);
 
