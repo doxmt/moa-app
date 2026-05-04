@@ -26,6 +26,8 @@ export async function fetchCoupleBasic(): Promise<CoupleBasic | null> {
     .neq('user_id', user.id)
     .single();
 
+  if (!partner) return null;
+
   return {
     userId: user.id,
     coupleId: profile.couple_id,

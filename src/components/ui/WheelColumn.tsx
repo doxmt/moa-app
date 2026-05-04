@@ -4,6 +4,7 @@ import {
   Text,
   ScrollView,
   StyleSheet,
+  TouchableOpacity,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native'
@@ -66,11 +67,21 @@ export default function WheelColumn({ items, selected, onSelect, format }: Props
         nestedScrollEnabled
       >
         {items.map((v) => (
-          <View key={v} style={styles.item}>
+          <TouchableOpacity
+            key={v}
+            style={styles.item}
+            activeOpacity={0.6}
+            onPress={() => {
+              prevSelectedRef.current = v;
+              onSelect(v);
+              const idx = items.indexOf(v);
+              scrollRef.current?.scrollTo({ y: idx * ITEM_HEIGHT, animated: true });
+            }}
+          >
             <Text style={v === selected ? styles.selectedText : styles.unselectedText}>
               {format(v)}
             </Text>
-          </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
     </View>
