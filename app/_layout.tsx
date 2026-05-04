@@ -30,8 +30,6 @@ function AuthGate() {
 
     if (inAuth) {
       router.replace(profileComplete ? '/(tabs)/home' : '/(onboarding)');
-    } else if (inOnboarding && profileComplete) {
-      router.replace('/(tabs)/home');
     }
   }, [session, initialized, profileComplete, segments]);
 

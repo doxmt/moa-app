@@ -95,6 +95,7 @@ export default function LoginScreen() {
     if (loadingProvider) return;
     setLoadingProvider(provider);
 
+    let success = false;
     try {
       const redirectTo = Linking.createURL('auth/callback');
 
@@ -139,10 +140,12 @@ export default function LoginScreen() {
       });
 
       if (sessionError) throw sessionError;
+
+      success = true; // 성공 시 로딩 유지 (화면 전환까지)
     } catch (e) {
       Alert.alert('로그인 실패', e instanceof Error ? e.message : '알 수 없는 오류가 발생했어요.');
     } finally {
-      setLoadingProvider(null);
+      if (!success) setLoadingProvider(null);
     }
   };
 

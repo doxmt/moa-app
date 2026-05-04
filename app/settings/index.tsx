@@ -176,10 +176,12 @@ export default function SettingsScreen() {
             value="변경하기"
             onPress={() => router.push('/settings/calendar')}
           />
-          <Row
-            label="연결하기"
-            onPress={() => router.push('/settings/connect')}
-          />
+          {!profile?.partnerName && (
+            <Row
+              label="연결하기"
+              onPress={() => router.push('/settings/connect')}
+            />
+          )}
         </Section>
 
         <Section title="앱">
@@ -221,7 +223,7 @@ export default function SettingsScreen() {
             {inviteCode && (
               <View className="bg-moa-bg rounded-xl px-4 py-3 items-center gap-2">
                 <Text className="text-xs text-moa-muted">초대 코드</Text>
-                <Text className="text-xl font-bold text-moa-text tracking-widest">{inviteCode}</Text>
+                <Text className="text-xl font-bold text-moa-text tracking-widest">{inviteCode.toUpperCase()}</Text>
                 <TouchableOpacity
                   onPress={async () => {
                     await Clipboard.setStringAsync(inviteCode!);

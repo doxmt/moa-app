@@ -16,12 +16,16 @@ type AuthState = {
 let authSubscription: Subscription | null = null;
 
 async function checkProfileComplete(userId: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('profiles')
-    .select('name')
-    .eq('user_id', userId)
-    .single();
-  return !!data?.name;
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('user_id', userId)
+      .maybeSingle();
+    return !!data?.name;
+  } catch {
+    return false;
+  }
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -44,13 +48,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ session: data.session, user, initialized: true, profileComplete });
 
     authSubscription?.unsubscribe();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') return;
+
       const newUser = session?.user ?? null;
-      let pc: boolean | null = null;
+      set({ session, user: newUser, profileComplete: null });
+
       if (newUser) {
-        pc = await checkProfileComplete(newUser.id);
+        setTimeout(async () => {
+          const pc = await checkProfileComplete(newUser.id);
+          set({ profileComplete: pc });
+        }, 0);
       }
-      set({ session, user: newUser, profileComplete: pc });
     });
     authSubscription = subscription;
   },
