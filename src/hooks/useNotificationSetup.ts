@@ -1,5 +1,6 @@
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -36,6 +37,8 @@ export function getRouteForNotificationType(type: string): string {
 
 async function registerPushToken() {
   if (!Device.isDevice) return;
+  // Expo Go는 푸시 알림 미지원 (SDK 53+)
+  if (Constants.executionEnvironment === 'storeClient') return;
 
   const { status: existing } = await Notifications.getPermissionsAsync();
   let finalStatus = existing;
@@ -57,9 +60,6 @@ async function registerPushToken() {
     });
   }
 
-  // EAS Build 환경에서 projectId 필요
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const Constants = require('expo-constants').default;
   const projectId: string | undefined =
     Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
 
