@@ -1,7 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { fetchCoupleBasic } from '@/lib/supabase/profile';
-import { Story, addStory, deleteStory, getStories, updateCaption } from '@/lib/supabase/stories';
+import { FREE_DAILY_LIMIT, Story, addStory, deleteStory, getStories, updateCaption } from '@/lib/supabase/stories';
+
+export { FREE_DAILY_LIMIT } from '@/lib/supabase/stories';
+
+const isPremium = false; // TODO: 결제 시스템 연동 시 교체
+
+function isToday(dateStr: string): boolean {
+  const d = new Date(dateStr);
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
 
 type State = {
   coupleId: string;
@@ -27,14 +41,17 @@ export function useStoryData() {
   });
 
   useEffect(() => {
+    let cancelled = false;
     async function init() {
       const couple = await fetchCoupleBasic();
+      if (cancelled) return;
       if (!couple) {
         setState((prev) => ({ ...prev, loading: false }));
         return;
       }
 
-      const stories = await getStories(couple.coupleId);
+      const stories = await getStories(couple.coupleId, isPremium);
+      if (cancelled) return;
 
       setState((prev) => ({
         ...prev,
@@ -48,6 +65,7 @@ export function useStoryData() {
       }));
     }
     init();
+    return () => { cancelled = true; };
   }, []);
 
   const uploadStory = useCallback(
@@ -96,6 +114,12 @@ export function useStoryData() {
     [state.coupleId]
   );
 
+  const todayUploadCount = state.stories.filter(
+    (s) => s.created_by === state.userId && isToday(s.created_at)
+  ).length;
+
+  const uploadLimitReached = !isPremium && todayUploadCount >= FREE_DAILY_LIMIT;
+
   return {
     userId: state.userId,
     myNickname: state.myNickname,
@@ -104,6 +128,9 @@ export function useStoryData() {
     loading: state.loading,
     submitting: state.submitting,
     isConnected: state.isConnected,
+    isPremium,
+    todayUploadCount,
+    uploadLimitReached,
     uploadStory,
     editCaption,
     removeStory,

@@ -1,19 +1,25 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 
-import { useStoryData } from '@/hooks/useStoryData';
+import { FREE_DAILY_LIMIT, useStoryData } from '@/hooks/useStoryData';
 import { Story } from '@/lib/supabase/stories';
 import { styles } from '@/components/features/story/story.styles';
 import StoryUploadModal from '@/components/features/story/StoryUploadModal';
 import StoryViewer from '@/components/features/story/StoryViewer';
 import { dateToDateStr } from '@/utils/date';
 
-const PREVIEW_COUNT = 3;
+const LOCK_AFTER_DAYS = 7;
 
-const todayKey = dateToDateStr(new Date());
+function isDateLocked(dateKey: string, premium: boolean): boolean {
+  if (premium) return false;
+  const diffMs = Date.now() - new Date(dateKey).getTime();
+  return diffMs / (1000 * 60 * 60 * 24) > LOCK_AFTER_DAYS;
+}
+
+const PREVIEW_COUNT = 3;
 
 function groupByDate(stories: Story[]): { key: string; dateLabel: string; stories: Story[] }[] {
   const map: Record<string, Story[]> = {};
@@ -32,14 +38,21 @@ function groupByDate(stories: Story[]): { key: string; dateLabel: string; storie
 
 function DateGroup({
   dateLabel,
+  dateKey,
   stories,
   onOpen,
+  isPremium,
+  onLockedPress,
 }: {
   dateLabel: string;
+  dateKey: string;
   stories: Story[];
   onOpen: (group: Story[], index: number) => void;
+  isPremium: boolean;
+  onLockedPress: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const locked = isDateLocked(dateKey, isPremium);
   const visible = expanded ? stories : stories.slice(0, PREVIEW_COUNT);
   const hasMore = stories.length > PREVIEW_COUNT;
 
@@ -47,20 +60,35 @@ function DateGroup({
     <View className="flex flex-col gap-1.5">
       <Text className="text-xs text-moa-muted font-medium px-5">{dateLabel}</Text>
       <View className="flex-row flex-wrap">
-        {visible.map((story, i) => (
-          <TouchableOpacity
-            key={story.id}
-            onPress={() => onOpen(stories, i)}
-            style={styles.cell}
-            className="bg-moa-border"
-          >
-            {story.signed_url ? (
-              <Image source={{ uri: story.signed_url }} style={styles.cell} resizeMode="cover" />
-            ) : null}
-          </TouchableOpacity>
-        ))}
+        {visible.map((story, i) =>
+          locked ? (
+            <TouchableOpacity
+              key={story.id}
+              onPress={onLockedPress}
+              style={[styles.cell, lockedCellStyle.wrap]}
+            >
+              <View style={lockedCellStyle.overlay}>
+                <Svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth={2}>
+                  <Path d="M19 11H5a2 2 0 00-2 2v7a2 2 0 002 2h14a2 2 0 002-2v-7a2 2 0 00-2-2z" strokeLinecap="round" strokeLinejoin="round" />
+                  <Path d="M7 11V7a5 5 0 0110 0v4" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              key={story.id}
+              onPress={() => onOpen(stories, i)}
+              style={styles.cell}
+              className="bg-moa-border"
+            >
+              {story.signed_url ? (
+                <Image source={{ uri: story.signed_url }} style={styles.cell} resizeMode="cover" />
+              ) : null}
+            </TouchableOpacity>
+          )
+        )}
       </View>
-      {hasMore && (
+      {hasMore && !locked && (
         <TouchableOpacity onPress={() => setExpanded((v) => !v)} className="py-1.5">
           <Text className="text-xs text-moa-sub text-center">
             {expanded ? '접기' : `더보기 +${stories.length - PREVIEW_COUNT}`}
@@ -75,12 +103,17 @@ function StorySection({
   nickname,
   stories,
   onOpen,
+  isPremium,
+  onLockedPress,
 }: {
   nickname: string;
   stories: Story[];
   onOpen: (group: Story[], index: number) => void;
+  isPremium: boolean;
+  onLockedPress: () => void;
 }) {
   const [showPast, setShowPast] = useState(false);
+  const todayKey = dateToDateStr(new Date());
   const allGroups = groupByDate(stories);
   const groups = showPast ? allGroups : allGroups.filter((g) => g.key === todayKey);
   const hasPast = allGroups.some((g) => g.key !== todayKey);
@@ -102,7 +135,15 @@ function StorySection({
       ) : (
         <View className="gap-4 pb-2">
           {groups.map((g) => (
-            <DateGroup key={g.key} dateLabel={g.dateLabel} stories={g.stories} onOpen={onOpen} />
+            <DateGroup
+              key={g.key}
+              dateKey={g.key}
+              dateLabel={g.dateLabel}
+              stories={g.stories}
+              onOpen={onOpen}
+              isPremium={isPremium}
+              onLockedPress={onLockedPress}
+            />
           ))}
         </View>
       )}
@@ -120,10 +161,20 @@ export default function StoryScreen() {
     loading,
     submitting,
     isConnected,
+    isPremium,
+    uploadLimitReached,
     uploadStory,
     editCaption,
     removeStory,
   } = useStoryData();
+
+  const handleLockedPress = () => {
+    Alert.alert(
+      '잠긴 스토리',
+      `7일 이전 기록은 프리미엄 이용자만 볼 수 있어요\n우리의 소중한 추억을 모두 확인해보세요`,
+      [{ text: '확인' }]
+    );
+  };
 
   const [uploadUri, setUploadUri] = useState<string | null>(null);
   const [viewerGroup, setViewerGroup] = useState<Story[] | null>(null);
@@ -140,6 +191,10 @@ export default function StoryScreen() {
   const closeViewer = () => setViewerGroup(null);
 
   const pickImage = async () => {
+    if (uploadLimitReached) {
+      Alert.alert('업로드 한도', `하루 ${FREE_DAILY_LIMIT}장까지 업로드할 수 있어요`);
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
@@ -157,7 +212,7 @@ export default function StoryScreen() {
         <TouchableOpacity
           onPress={isConnected ? pickImage : undefined}
           className="w-8 h-8 rounded-full items-center justify-center"
-          style={{ backgroundColor: isConnected ? '#222222' : '#CCCCCC' }}
+          style={{ backgroundColor: isConnected && !uploadLimitReached ? '#222222' : '#CCCCCC' }}
         >
           <Svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="white" strokeWidth={2.5}>
             <Path d="M12 5v14M5 12h14" strokeLinecap="round" />
@@ -185,9 +240,21 @@ export default function StoryScreen() {
         </View>
       ) : (
         <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-          <StorySection nickname={partnerNickname} stories={partnerStories} onOpen={openViewer} />
+          <StorySection
+            nickname={partnerNickname}
+            stories={partnerStories}
+            onOpen={openViewer}
+            isPremium={isPremium}
+            onLockedPress={handleLockedPress}
+          />
           <View className="h-px bg-moa-border mx-5 my-2" />
-          <StorySection nickname={myNickname} stories={myStories} onOpen={openViewer} />
+          <StorySection
+            nickname={myNickname}
+            stories={myStories}
+            onOpen={openViewer}
+            isPremium={isPremium}
+            onLockedPress={handleLockedPress}
+          />
         </ScrollView>
       )}
 
@@ -218,6 +285,16 @@ export default function StoryScreen() {
     </View>
   );
 }
+
+const lockedCellStyle = StyleSheet.create({
+  wrap: { backgroundColor: '#E8E8E8', overflow: 'hidden' },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
 
 const storyBannerStyles = StyleSheet.create({
   emptyTitle: {

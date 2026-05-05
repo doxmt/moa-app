@@ -2,6 +2,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 import { supabase } from './client';
 
+export const FREE_DAILY_LIMIT = 3;
+const LOCK_AFTER_DAYS = 7;
+
 export type Story = {
   id: string;
   couple_id: string;
@@ -21,7 +24,7 @@ function base64ToUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
-export async function getStories(coupleId: string): Promise<Story[]> {
+export async function getStories(coupleId: string, isPremium = false): Promise<Story[]> {
   const { data, error } = await supabase
     .from('stories')
     .select('*')
@@ -32,6 +35,10 @@ export async function getStories(coupleId: string): Promise<Story[]> {
 
   const withUrls = await Promise.all(
     data.map(async (story) => {
+      const diffDays = (Date.now() - new Date(story.created_at).getTime()) / (1000 * 60 * 60 * 24);
+      if (!isPremium && diffDays > LOCK_AFTER_DAYS) {
+        return { ...story, signed_url: undefined };
+      }
       const { data: signed } = await supabase.storage
         .from('couple-photos')
         .createSignedUrl(story.storage_path, 60 * 60);
@@ -51,6 +58,16 @@ export async function addStory(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error('로그인이 필요합니다');
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const { count } = await supabase
+    .from('stories')
+    .select('id', { count: 'exact', head: true })
+    .eq('couple_id', coupleId)
+    .eq('created_by', user.id)
+    .gte('created_at', today.toISOString());
+  if ((count ?? 0) >= FREE_DAILY_LIMIT) throw new Error('DAILY_LIMIT_EXCEEDED');
 
   const filename = uri.split('/').pop() ?? 'photo.jpg';
   const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
