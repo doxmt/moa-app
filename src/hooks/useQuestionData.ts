@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase/client';
 import { fetchCoupleBasic } from '@/lib/supabase/profile';
-import { getQuestionDayIndex } from '@/utils/questionDay';
+import { getTodayDayNumber } from '@/utils/questionDay';
 
 export type GameItem = {
   id: string;
@@ -21,178 +21,189 @@ type QuestionData = {
   myNickname: string;
   partnerNickname: string | null;
   coupleId: string;
+  isConnected: boolean;
 };
 
-export function useQuestionData() {
-  const [data, setData] = useState<QuestionData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isConnected, setIsConnected] = useState(false);
+async function fetchQuestionData(): Promise<QuestionData> {
+  const couple = await fetchCoupleBasic();
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function load() {
-    setLoading(true);
-
-    const couple = await fetchCoupleBasic();
-
-    if (!couple) {
-      // 미연결 시 오늘 질문만 보여주기 (답변 불가)
-      const { data: games } = await supabase
-        .from('balance_games')
-        .select('id, question, option_a, option_b')
-        .order('created_at', { ascending: true });
-
-      if (games && games.length > 0) {
-        const todayIdx = getQuestionDayIndex(0) % games.length;
-        const g = games[todayIdx];
-        setData({
-          games: [{
-            id: g.id,
-            question: g.question,
-            optionA: g.option_a,
-            optionB: g.option_b,
-            myPicked: null,
-            myReason: null,
-            partnerPicked: null,
-            partnerReason: null,
-            isToday: true,
-          }],
-          myNickname: '',
-          partnerNickname: null,
-          coupleId: '',
-        });
-      }
-
-      setIsConnected(false);
-      setLoading(false);
-      return;
-    }
-
-    setIsConnected(true);
-
-    const { userId, coupleId, myNickname, partnerNickname } = couple;
-
-    const { data: games } = await supabase
+  if (!couple) {
+    const { data: game } = await supabase
       .from('balance_games')
       .select('id, question, option_a, option_b')
-      .order('created_at', { ascending: true });
+      .eq('day_number', 1)
+      .single();
 
-    if (!games || games.length === 0) {
-      setData({
-        games: [],
-        myNickname,
-        partnerNickname,
-        coupleId,
-      });
-      setLoading(false);
-      return;
+    if (game) {
+      return {
+        games: [{
+          id: game.id,
+          question: game.question,
+          optionA: game.option_a,
+          optionB: game.option_b,
+          myPicked: null,
+          myReason: null,
+          partnerPicked: null,
+          partnerReason: null,
+          isToday: true,
+        }],
+        myNickname: '',
+        partnerNickname: null,
+        coupleId: '',
+        isConnected: false,
+      };
     }
 
-    const { data: coupleRefresh } = await supabase
-      .from('couples')
-      .select('question_refresh_minutes')
-      .eq('id', coupleId)
-      .single();
-    const refreshMinutes = coupleRefresh?.question_refresh_minutes ?? 0;
-    const todayIdx = getQuestionDayIndex(refreshMinutes) % games.length;
-
-    const { data: answers } = await supabase
-      .from('game_answers')
-      .select('game_id, user_id, selected_option, reason')
-      .eq('couple_id', coupleId);
-
-    type AnswerInfo = { option: 'a' | 'b'; reason: string | null };
-
-    const myAnswers = new Map<string, AnswerInfo>(
-      (answers ?? [])
-        .filter((a) => a.user_id === userId)
-        .map((a) => [a.game_id, { option: a.selected_option as 'a' | 'b', reason: a.reason ?? null }]),
-    );
-    const partnerAnswers = new Map<string, AnswerInfo>(
-      (answers ?? [])
-        .filter((a) => a.user_id !== userId)
-        .map((a) => [a.game_id, { option: a.selected_option as 'a' | 'b', reason: a.reason ?? null }]),
-    );
-
-    const gameItems: GameItem[] = games.map((g, i) => {
-      const mine = myAnswers.get(g.id) ?? null;
-      const partnerAns = mine ? (partnerAnswers.get(g.id) ?? null) : null;
-      return {
-        id: g.id,
-        question: g.question,
-        optionA: g.option_a,
-        optionB: g.option_b,
-        myPicked: mine?.option ?? null,
-        myReason: mine?.reason ?? null,
-        partnerPicked: partnerAns?.option ?? null,
-        partnerReason: partnerAns?.reason ?? null,
-        isToday: i === todayIdx,
-      };
-    });
-
-    const shownGames = gameItems.slice(0, todayIdx + 1);
-    const todayGame = shownGames.find((g) => g.isToday) ?? null;
-    const otherGames = shownGames.filter((g) => !g.isToday).reverse();
-
-    setData({
-      games: todayGame ? [todayGame, ...otherGames] : otherGames,
-      myNickname,
-      partnerNickname,
-      coupleId,
-    });
-    setLoading(false);
+    return { games: [], myNickname: '', partnerNickname: null, coupleId: '', isConnected: false };
   }
 
-  const submitAnswer = async (gameId: string, option: 'a' | 'b') => {
-    if (!data?.coupleId) return;
+  const { userId, coupleId, myNickname, partnerNickname } = couple;
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
+  const { data: coupleData } = await supabase
+    .from('couples')
+    .select('question_refresh_minutes, created_at')
+    .eq('id', coupleId)
+    .single();
 
-    await supabase.from('game_answers').upsert({
-      game_id: gameId,
-      couple_id: data.coupleId,
-      user_id: user.id,
-      selected_option: option,
-    });
+  if (!coupleData?.created_at) {
+    return { games: [], myNickname, partnerNickname, coupleId, isConnected: true };
+  }
 
-    setData((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        games: prev.games.map((g) => (g.id === gameId ? { ...g, myPicked: option } : g)),
-      };
-    });
+  const refreshMinutes = coupleData.question_refresh_minutes ?? 0;
+  const todayDayNumber = getTodayDayNumber(coupleData.created_at, refreshMinutes);
+
+  const { data: games } = await supabase
+    .from('balance_games')
+    .select('id, question, option_a, option_b, day_number')
+    .lte('day_number', todayDayNumber)
+    .order('day_number', { ascending: true });
+
+  if (!games || games.length === 0) {
+    return { games: [], myNickname, partnerNickname, coupleId, isConnected: true };
+  }
+
+  const { data: answers } = await supabase
+    .from('game_answers')
+    .select('game_id, user_id, selected_option, reason')
+    .eq('couple_id', coupleId);
+
+  type AnswerInfo = { option: 'a' | 'b'; reason: string | null };
+
+  const myAnswers = new Map<string, AnswerInfo>(
+    (answers ?? [])
+      .filter((a) => a.user_id === userId)
+      .map((a) => [a.game_id, { option: a.selected_option as 'a' | 'b', reason: a.reason ?? null }]),
+  );
+  const partnerAnswers = new Map<string, AnswerInfo>(
+    (answers ?? [])
+      .filter((a) => a.user_id !== userId)
+      .map((a) => [a.game_id, { option: a.selected_option as 'a' | 'b', reason: a.reason ?? null }]),
+  );
+
+  const gameItems: GameItem[] = games.map((g) => {
+    const mine = myAnswers.get(g.id) ?? null;
+    const partnerAns = mine ? (partnerAnswers.get(g.id) ?? null) : null;
+    return {
+      id: g.id,
+      question: g.question,
+      optionA: g.option_a,
+      optionB: g.option_b,
+      myPicked: mine?.option ?? null,
+      myReason: mine?.reason ?? null,
+      partnerPicked: partnerAns?.option ?? null,
+      partnerReason: partnerAns?.reason ?? null,
+      isToday: g.day_number === todayDayNumber,
+    };
+  });
+
+  const todayGame = gameItems.find((g) => g.isToday) ?? null;
+  const pastGames = gameItems.filter((g) => !g.isToday).reverse();
+
+  return {
+    games: todayGame ? [todayGame, ...pastGames] : pastGames,
+    myNickname,
+    partnerNickname,
+    coupleId,
+    isConnected: true,
   };
+}
 
-  const saveReason = async (gameId: string, reason: string) => {
-    if (!data?.coupleId) return;
+export function useQuestionData() {
+  const queryClient = useQueryClient();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
+  const { data, isLoading } = useQuery({
+    queryKey: ['question-data'],
+    queryFn: fetchQuestionData,
+    staleTime: 1000 * 60 * 5,
+  });
 
-    await supabase
-      .from('game_answers')
-      .update({ reason: reason.trim() || null })
-      .eq('game_id', gameId)
-      .eq('user_id', user.id);
+  const submitAnswerMutation = useMutation({
+    mutationFn: async ({ gameId, option }: { gameId: string; option: 'a' | 'b' }) => {
+      const coupleId = data?.coupleId;
+      if (!coupleId) throw new Error('no coupleId');
 
-    setData((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        games: prev.games.map((g) =>
-          g.id === gameId ? { ...g, myReason: reason.trim() || null } : g,
-        ),
-      };
-    });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('no user');
+
+      await supabase.from('game_answers').upsert({
+        game_id: gameId,
+        couple_id: coupleId,
+        user_id: user.id,
+        selected_option: option,
+      });
+
+      return { gameId, option };
+    },
+    onSuccess: ({ gameId, option }) => {
+      queryClient.setQueryData<QuestionData>(['question-data'], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          games: old.games.map((g) => (g.id === gameId ? { ...g, myPicked: option } : g)),
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: ['home-data'] });
+    },
+  });
+
+  const saveReasonMutation = useMutation({
+    mutationFn: async ({ gameId, reason }: { gameId: string; reason: string }) => {
+      const coupleId = data?.coupleId;
+      if (!coupleId) throw new Error('no coupleId');
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('no user');
+
+      await supabase
+        .from('game_answers')
+        .update({ reason: reason.trim() || null })
+        .eq('game_id', gameId)
+        .eq('user_id', user.id);
+
+      return { gameId, reason };
+    },
+    onSuccess: ({ gameId, reason }) => {
+      queryClient.setQueryData<QuestionData>(['question-data'], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          games: old.games.map((g) =>
+            g.id === gameId ? { ...g, myReason: reason.trim() || null } : g,
+          ),
+        };
+      });
+    },
+  });
+
+  return {
+    data: data ?? null,
+    loading: isLoading,
+    isConnected: data?.isConnected ?? false,
+    submitAnswer: async (gameId: string, option: 'a' | 'b') => {
+      await submitAnswerMutation.mutateAsync({ gameId, option });
+    },
+    saveReason: async (gameId: string, reason: string) => {
+      await saveReasonMutation.mutateAsync({ gameId, reason });
+    },
   };
-
-  return { data, loading, isConnected, submitAnswer, saveReason };
 }

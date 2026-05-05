@@ -1,4 +1,4 @@
-export function getQuestionDayIndex(refreshMinutes: number): number {
+export function getTodayDayNumber(coupleCreatedAt: string, refreshMinutes: number): number {
   const now = new Date();
   const nowTotalMinutes = now.getHours() * 60 + now.getMinutes();
 
@@ -7,11 +7,12 @@ export function getQuestionDayIndex(refreshMinutes: number): number {
       ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
       : new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  return (
-    effectiveDate.getFullYear() * 10000 +
-    (effectiveDate.getMonth() + 1) * 100 +
-    effectiveDate.getDate()
-  );
+  const connected = new Date(coupleCreatedAt);
+  const connectedDay = new Date(connected.getFullYear(), connected.getMonth(), connected.getDate());
+
+  const diffDays = Math.floor((effectiveDate.getTime() - connectedDay.getTime()) / (1000 * 60 * 60 * 24));
+
+  return Math.max(1, diffDays + 1);
 }
 
 export function formatRefreshMinutes(totalMinutes: number): string {
