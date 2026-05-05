@@ -21,6 +21,7 @@
     "date-holidays": "^3.26.12",
     "expo": "~54.0.34",
     "expo-clipboard": "~8.0.8",
+    "expo-constants": "~18.0.13",
     "expo-device": "~8.0.10",
     "expo-file-system": "~19.0.22",
     "expo-image-picker": "~17.0.11",
