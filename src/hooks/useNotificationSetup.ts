@@ -1,10 +1,10 @@
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { savePushToken } from '@/lib/supabase/notifications';
+import { markOneAsRead, savePushToken } from '@/lib/supabase/notifications';
 import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/lib/supabase/client';
 
@@ -82,8 +82,9 @@ async function scheduleDailyQuestionReminder() {
 async function scheduleAnniversaryNotifications(createdAt: string) {
   const base = new Date(createdAt);
   const today = new Date();
-  const thisYear = today.getFullYear();
+  today.setHours(0, 0, 0, 0);
 
+  const thisYear = today.getFullYear();
   const anniversary = new Date(thisYear, base.getMonth(), base.getDate());
   if (anniversary < today) anniversary.setFullYear(thisYear + 1);
 
@@ -115,7 +116,7 @@ async function scheduleAnniversaryNotifications(createdAt: string) {
     notifDate.setDate(notifDate.getDate() - config.daysBefore);
     notifDate.setHours(9, 0, 0, 0);
 
-    if (notifDate > today) {
+    if (notifDate > new Date()) {
       await Notifications.scheduleNotificationAsync({
         identifier: config.id,
         content: {
@@ -135,8 +136,9 @@ async function scheduleAnniversaryNotifications(createdAt: string) {
 async function scheduleBirthdayNotifications(birthday: string, partnerName: string) {
   const base = new Date(birthday);
   const today = new Date();
-  const thisYear = today.getFullYear();
+  today.setHours(0, 0, 0, 0);
 
+  const thisYear = today.getFullYear();
   const bday = new Date(thisYear, base.getMonth(), base.getDate());
   if (bday < today) bday.setFullYear(thisYear + 1);
 
@@ -168,7 +170,7 @@ async function scheduleBirthdayNotifications(birthday: string, partnerName: stri
     notifDate.setDate(notifDate.getDate() - config.daysBefore);
     notifDate.setHours(9, 0, 0, 0);
 
-    if (notifDate > today) {
+    if (notifDate > new Date()) {
       await Notifications.scheduleNotificationAsync({
         identifier: config.id,
         content: {
@@ -225,19 +227,31 @@ async function scheduleLocalNotifications() {
 export function useNotificationSetup() {
   const { session } = useAuthStore();
   const router = useRouter();
+  const routerRef = useRef(router);
+  routerRef.current = router;
 
   useEffect(() => {
     if (!session) return;
-    registerPushToken();
-    scheduleLocalNotifications();
-  }, [session]);
+    registerPushToken().catch((e) => console.error('[push] register failed', e));
+    scheduleLocalNotifications().catch((e) => console.error('[push] schedule failed', e));
+  }, [session?.user?.id]);
 
   useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as { type?: string };
-      const route = getRouteForNotificationType(data?.type ?? '');
-      router.push(route as any);
+    // 콜드 스타트: 앱이 종료된 상태에서 푸시 탭으로 실행된 경우 처리
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) handleResponse(response);
     });
+
+    const sub = Notifications.addNotificationResponseReceivedListener(handleResponse);
     return () => sub.remove();
   }, []);
+
+  function handleResponse(response: Notifications.NotificationResponse) {
+    const data = response.notification.request.content.data as { type?: string; notificationId?: string };
+    if (data?.notificationId) {
+      markOneAsRead(data.notificationId).catch(() => {});
+    }
+    const route = getRouteForNotificationType(data?.type ?? '');
+    routerRef.current.push(route as any);
+  }
 }

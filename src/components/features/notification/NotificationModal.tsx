@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { FlatList, Modal, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Modal, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 
@@ -23,7 +23,7 @@ const TYPE_EMOJI: Record<NotificationType, string> = {
 };
 
 function formatRelativeTime(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
+  const diff = Math.max(0, Date.now() - new Date(dateStr).getTime());
   const minutes = Math.floor(diff / 60_000);
   if (minutes < 1) return '방금';
   if (minutes < 60) return `${minutes}분 전`;
@@ -86,8 +86,11 @@ export default function NotificationModal({ visible, onClose }: Props) {
     await markAllAsRead();
   };
 
-  const handleDeleteAll = async () => {
-    await deleteAll();
+  const handleDeleteAll = () => {
+    Alert.alert('전체 삭제', '모든 알림을 삭제하시겠어요?', [
+      { text: '취소', style: 'cancel' },
+      { text: '삭제', style: 'destructive', onPress: () => deleteAll() },
+    ]);
   };
 
   return (

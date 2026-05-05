@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  AppNotification,
   deleteAllNotifications,
   fetchNotifications,
   markAllAsRead,
@@ -17,6 +18,7 @@ export function useNotificationData() {
     queryFn: fetchNotifications,
     enabled: !!session,
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   });
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -35,8 +37,8 @@ export function useNotificationData() {
     mutationFn: markOneAsRead,
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ['notifications'] });
-      const prev = queryClient.getQueryData(['notifications']);
-      queryClient.setQueryData(['notifications'], (old: any[] = []) =>
+      const prev = queryClient.getQueryData<AppNotification[]>(['notifications']);
+      queryClient.setQueryData<AppNotification[]>(['notifications'], (old = []) =>
         old.map((n) => (n.id === id ? { ...n, read: true } : n)),
       );
       return { prev };
@@ -44,6 +46,7 @@ export function useNotificationData() {
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(['notifications'], ctx.prev);
     },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
   });
 
   return {

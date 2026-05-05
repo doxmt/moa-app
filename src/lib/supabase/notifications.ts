@@ -60,10 +60,14 @@ export async function deleteAllNotifications(): Promise<void> {
 }
 
 export async function markOneAsRead(notificationId: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
   const { error } = await supabase
     .from('notifications')
     .update({ read: true })
-    .eq('id', notificationId);
+    .eq('id', notificationId)
+    .eq('user_id', user.id);
 
   if (error) throw error;
 }
