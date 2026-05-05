@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase/client';
 import { fetchCoupleBasic } from '@/lib/supabase/profile';
 import { getTodayDayNumber } from '@/utils/questionDay';
+import { useAuthStore } from '@/stores/authStore';
 
 export type GameItem = {
   id: string;
@@ -28,11 +29,12 @@ async function fetchQuestionData(): Promise<QuestionData> {
   const couple = await fetchCoupleBasic();
 
   if (!couple) {
-    const { data: game } = await supabase
+    const { data: game, error } = await supabase
       .from('balance_games')
       .select('id, question, option_a, option_b')
       .eq('day_number', 1)
-      .single();
+      .maybeSingle();
+    if (error) throw error;
 
     if (game) {
       return {
@@ -59,11 +61,12 @@ async function fetchQuestionData(): Promise<QuestionData> {
 
   const { userId, coupleId, myNickname, partnerNickname } = couple;
 
-  const { data: coupleData } = await supabase
+  const { data: coupleData, error: coupleError } = await supabase
     .from('couples')
     .select('question_refresh_minutes, created_at')
     .eq('id', coupleId)
-    .single();
+    .maybeSingle();
+  if (coupleError) throw coupleError;
 
   if (!coupleData?.created_at) {
     return { games: [], myNickname, partnerNickname, coupleId, isConnected: true };
@@ -72,20 +75,22 @@ async function fetchQuestionData(): Promise<QuestionData> {
   const refreshMinutes = coupleData.question_refresh_minutes ?? 0;
   const todayDayNumber = getTodayDayNumber(coupleData.created_at, refreshMinutes);
 
-  const { data: games } = await supabase
+  const { data: games, error: gamesError } = await supabase
     .from('balance_games')
     .select('id, question, option_a, option_b, day_number')
     .lte('day_number', todayDayNumber)
     .order('day_number', { ascending: true });
+  if (gamesError) throw gamesError;
 
   if (!games || games.length === 0) {
     return { games: [], myNickname, partnerNickname, coupleId, isConnected: true };
   }
 
-  const { data: answers } = await supabase
+  const { data: answers, error: answersError } = await supabase
     .from('game_answers')
     .select('game_id, user_id, selected_option, reason')
     .eq('couple_id', coupleId);
+  if (answersError) throw answersError;
 
   type AnswerInfo = { option: 'a' | 'b'; reason: string | null };
 
@@ -102,6 +107,7 @@ async function fetchQuestionData(): Promise<QuestionData> {
 
   const gameItems: GameItem[] = games.map((g) => {
     const mine = myAnswers.get(g.id) ?? null;
+    // 내가 먼저 답하기 전엔 파트너 답 노출 금지
     const partnerAns = mine ? (partnerAnswers.get(g.id) ?? null) : null;
     return {
       id: g.id,
@@ -130,55 +136,66 @@ async function fetchQuestionData(): Promise<QuestionData> {
 
 export function useQuestionData() {
   const queryClient = useQueryClient();
+  const { session } = useAuthStore();
 
   const { data, isLoading } = useQuery({
     queryKey: ['question-data'],
     queryFn: fetchQuestionData,
-    staleTime: 1000 * 60 * 5,
+    enabled: !!session,
   });
 
   const submitAnswerMutation = useMutation({
     mutationFn: async ({ gameId, option }: { gameId: string; option: 'a' | 'b' }) => {
-      const coupleId = data?.coupleId;
+      const cached = queryClient.getQueryData<QuestionData>(['question-data']);
+      const coupleId = cached?.coupleId;
       if (!coupleId) throw new Error('no coupleId');
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('no user');
 
-      await supabase.from('game_answers').upsert({
+      const { error } = await supabase.from('game_answers').upsert({
         game_id: gameId,
         couple_id: coupleId,
         user_id: user.id,
         selected_option: option,
       });
+      if (error) throw error;
 
       return { gameId, option };
     },
-    onSuccess: ({ gameId, option }) => {
+    onMutate: async ({ gameId, option }) => {
+      await queryClient.cancelQueries({ queryKey: ['question-data'] });
+      const prev = queryClient.getQueryData<QuestionData>(['question-data']);
       queryClient.setQueryData<QuestionData>(['question-data'], (old) => {
         if (!old) return old;
-        return {
-          ...old,
-          games: old.games.map((g) => (g.id === gameId ? { ...g, myPicked: option } : g)),
-        };
+        return { ...old, games: old.games.map((g) => (g.id === gameId ? { ...g, myPicked: option } : g)) };
       });
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['question-data'], ctx.prev);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['question-data'] });
       queryClient.invalidateQueries({ queryKey: ['home-data'] });
     },
   });
 
   const saveReasonMutation = useMutation({
     mutationFn: async ({ gameId, reason }: { gameId: string; reason: string }) => {
-      const coupleId = data?.coupleId;
+      const cached = queryClient.getQueryData<QuestionData>(['question-data']);
+      const coupleId = cached?.coupleId;
       if (!coupleId) throw new Error('no coupleId');
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('no user');
 
-      await supabase
+      const { error } = await supabase
         .from('game_answers')
         .update({ reason: reason.trim() || null })
         .eq('game_id', gameId)
         .eq('user_id', user.id);
+      if (error) throw error;
 
       return { gameId, reason };
     },

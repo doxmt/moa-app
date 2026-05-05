@@ -1,9 +1,10 @@
 export function getTodayDayNumber(coupleCreatedAt: string, refreshMinutes: number): number {
+  const minutes = Math.min(1439, Math.max(0, refreshMinutes));
   const now = new Date();
   const nowTotalMinutes = now.getHours() * 60 + now.getMinutes();
 
   const effectiveDate =
-    nowTotalMinutes < refreshMinutes
+    nowTotalMinutes < minutes
       ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
       : new Date(now.getFullYear(), now.getMonth(), now.getDate());
 

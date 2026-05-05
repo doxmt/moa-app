@@ -1,10 +1,10 @@
-import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase/client';
 import { fetchCoupleBasic } from '@/lib/supabase/profile';
 import { getTodayDayNumber } from '@/utils/questionDay';
 import { deleteOldCouplePhotos, getLatestPhotoUrl, uploadCouplePhoto } from '@/lib/supabase/photo';
+import { useAuthStore } from '@/stores/authStore';
 
 type BalanceGame = {
   id: string;
@@ -15,7 +15,7 @@ type BalanceGame = {
   partnerPicked: 'a' | 'b' | null;
 };
 
-type HomeData = {
+export type HomeData = {
   myNickname: string;
   partnerNickname: string | null;
   coupleId: string;
@@ -33,14 +33,15 @@ async function fetchHomeData(): Promise<HomeQueryResult> {
   const couple = await fetchCoupleBasic();
 
   if (!couple) {
-    const { data: games } = await supabase
+    const { data: game, error } = await supabase
       .from('balance_games')
       .select('id, question, option_a, option_b')
       .eq('day_number', 1)
-      .single();
+      .maybeSingle();
+    if (error) throw error;
 
-    const previewGame: BalanceGame | null = games
-      ? { id: games.id, question: games.question, optionA: games.option_a, optionB: games.option_b, myPicked: null, partnerPicked: null }
+    const previewGame: BalanceGame | null = game
+      ? { id: game.id, question: game.question, optionA: game.option_a, optionB: game.option_b, myPicked: null, partnerPicked: null }
       : null;
 
     return { data: null, previewGame };
@@ -48,16 +49,19 @@ async function fetchHomeData(): Promise<HomeQueryResult> {
 
   const { userId, coupleId, myNickname, partnerNickname } = couple;
 
-  const { data: coupleData } = await supabase
+  const { data: coupleData, error: coupleError } = await supabase
     .from('couples')
     .select('anniversary, question_refresh_minutes, created_at')
     .eq('id', coupleId)
-    .single();
+    .maybeSingle();
+  if (coupleError) throw coupleError;
 
   let dDay: number | null = null;
   if (coupleData?.anniversary) {
-    const start = new Date(coupleData.anniversary);
-    const today = new Date();
+    const a = new Date(coupleData.anniversary);
+    const start = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     dDay = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   }
 
@@ -67,29 +71,32 @@ async function fetchHomeData(): Promise<HomeQueryResult> {
     const refreshMinutes = coupleData.question_refresh_minutes ?? 0;
     const todayDayNumber = getTodayDayNumber(coupleData.created_at, refreshMinutes);
 
-    const { data: game } = await supabase
+    const { data: game, error: gameError } = await supabase
       .from('balance_games')
       .select('id, question, option_a, option_b')
       .eq('day_number', todayDayNumber)
-      .single();
+      .maybeSingle();
+    if (gameError) throw gameError;
 
     if (game) {
-      const [{ data: myAnswer }, { data: partnerAnswer }] = await Promise.all([
+      const [{ data: myAnswer, error: myErr }, { data: partnerAnswer, error: partnerErr }] = await Promise.all([
         supabase
           .from('game_answers')
           .select('selected_option')
           .eq('game_id', game.id)
           .eq('couple_id', coupleId)
           .eq('user_id', userId)
-          .single(),
+          .maybeSingle(),
         supabase
           .from('game_answers')
           .select('selected_option')
           .eq('game_id', game.id)
           .eq('couple_id', coupleId)
           .neq('user_id', userId)
-          .single(),
+          .maybeSingle(),
       ]);
+      if (myErr) throw myErr;
+      if (partnerErr) throw partnerErr;
 
       balanceGame = {
         id: game.id,
@@ -112,56 +119,61 @@ async function fetchHomeData(): Promise<HomeQueryResult> {
 
 export function useHomeData() {
   const queryClient = useQueryClient();
-  const [uploading, setUploading] = useState(false);
+  const { session } = useAuthStore();
 
   const { data: result, isLoading } = useQuery({
     queryKey: ['home-data'],
     queryFn: fetchHomeData,
-    staleTime: 1000 * 60 * 5,
+    enabled: !!session,
   });
 
   const submitAnswerMutation = useMutation({
     mutationFn: async (option: 'a' | 'b') => {
-      const balanceGame = result?.data?.balanceGame;
-      const coupleId = result?.data?.coupleId;
+      const cached = queryClient.getQueryData<HomeQueryResult>(['home-data']);
+      const balanceGame = cached?.data?.balanceGame;
+      const coupleId = cached?.data?.coupleId;
       if (!balanceGame || !coupleId) throw new Error('no data');
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('no user');
 
-      await supabase.from('game_answers').upsert({
+      const { error } = await supabase.from('game_answers').upsert({
         game_id: balanceGame.id,
         couple_id: coupleId,
         user_id: user.id,
         selected_option: option,
       });
+      if (error) throw error;
 
       return option;
     },
-    onSuccess: (option) => {
+    onMutate: async (option) => {
+      await queryClient.cancelQueries({ queryKey: ['home-data'] });
+      const prev = queryClient.getQueryData<HomeQueryResult>(['home-data']);
       queryClient.setQueryData<HomeQueryResult>(['home-data'], (old) => {
         if (!old?.data?.balanceGame) return old;
-        return {
-          ...old,
-          data: { ...old.data, balanceGame: { ...old.data.balanceGame, myPicked: option } },
-        };
+        return { ...old, data: { ...old.data, balanceGame: { ...old.data.balanceGame, myPicked: option } } };
       });
+      return { prev };
+    },
+    onError: (_err, _option, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['home-data'], ctx.prev);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['home-data'] });
       queryClient.invalidateQueries({ queryKey: ['question-data'] });
     },
   });
 
   const uploadPhotoMutation = useMutation({
     mutationFn: async (uri: string) => {
-      const coupleId = result?.data?.coupleId;
+      const cached = queryClient.getQueryData<HomeQueryResult>(['home-data']);
+      const coupleId = cached?.data?.coupleId;
       if (!coupleId) throw new Error('no coupleId');
-      setUploading(true);
-      try {
-        await uploadCouplePhoto(uri, coupleId);
-        await deleteOldCouplePhotos(coupleId);
-        return await getLatestPhotoUrl(coupleId);
-      } finally {
-        setUploading(false);
-      }
+
+      await uploadCouplePhoto(uri, coupleId);
+      await deleteOldCouplePhotos(coupleId);
+      return await getLatestPhotoUrl(coupleId);
     },
     onSuccess: (latestPhotoUrl) => {
       queryClient.setQueryData<HomeQueryResult>(['home-data'], (old) => {
@@ -174,7 +186,7 @@ export function useHomeData() {
   return {
     data: result?.data ?? null,
     loading: isLoading,
-    uploading,
+    uploading: uploadPhotoMutation.isPending,
     previewGame: result?.previewGame ?? null,
     submitAnswer: (option: 'a' | 'b') => submitAnswerMutation.mutate(option),
     uploadPhoto: (uri: string) => uploadPhotoMutation.mutateAsync(uri),
