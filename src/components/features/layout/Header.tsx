@@ -3,25 +3,34 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Bell, LogOut, Settings } from 'lucide-react-native';
+import { useQuery } from '@tanstack/react-query';
 
 import { useAuthStore } from '@/stores/authStore';
-import { useNotificationData } from '@/hooks/useNotificationData';
+import { fetchNotifications } from '@/lib/supabase/notifications';
 import NotificationModal from '@/components/features/notification/NotificationModal';
 
 export default function Header() {
   const router = useRouter();
   const { top } = useSafeAreaInsets();
-  const { signOut } = useAuthStore();
-  const { unreadCount } = useNotificationData();
+  const { session, signOut } = useAuthStore();
   const [modalVisible, setModalVisible] = useState(false);
+
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: fetchNotifications,
+    enabled: !!session,
+    select: (data) => data.filter((n) => !n.read).length,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+  });
 
   return (
     <>
-      <View style={{ paddingTop: top }} className="border-b border-[#F0F0F0] bg-[#FAFAFA]">
+      <View style={{ paddingTop: top }} className="border-b border-moa-border bg-moa-bg">
         <View className="flex-row items-center justify-between px-5 py-4">
           <View className="flex-row items-center gap-2">
             <Image source={require('../../../../assets/images/icon.png')} style={styles.logo} />
-            <Text className="text-base font-bold text-[#222222]">모아</Text>
+            <Text className="text-base font-bold text-moa-text">모아</Text>
           </View>
           <View className="flex-row items-center gap-3">
             <TouchableOpacity className="p-1" onPress={() => setModalVisible(true)}>

@@ -10,7 +10,6 @@ import { supabase } from '@/lib/supabase/client';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldShowBanner: true,
     shouldShowList: true,
     shouldPlaySound: true,
@@ -42,7 +41,9 @@ async function registerPushToken() {
   let finalStatus = existing;
 
   if (existing !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
+    const { status } = await Notifications.requestPermissionsAsync({
+      ios: { allowAlert: true, allowBadge: true, allowSound: true },
+    });
     finalStatus = status;
   }
 
@@ -56,9 +57,15 @@ async function registerPushToken() {
     });
   }
 
-  const token = (await Notifications.getExpoPushTokenAsync()).data;
+  // EAS Build 환경에서 projectId 필요
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const Constants = require('expo-constants').default;
+  const projectId: string | undefined =
+    Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+
+  const tokenData = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
   const platform = Platform.OS === 'ios' ? 'ios' : 'android';
-  await savePushToken(token, platform);
+  await savePushToken(tokenData.data, platform);
 }
 
 async function scheduleDailyQuestionReminder() {

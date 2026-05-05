@@ -3,26 +3,27 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-type NotificationPayload = {
-  targetUserId: string;
-  type: string;
+type AdminClient = ReturnType<typeof createClient>;
+
+type PushMessage = {
+  to: string;
+  userId: string;
   title: string;
   body: string;
-  data?: Record<string, string>;
+  data: Record<string, string>;
 };
 
-async function sendExpoPush(tokens: string[], title: string, body: string, data: Record<string, string>) {
-  const chunk = (arr: string[], size: number) =>
-    Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
+const truncate = (s: string, max = 100) =>
+  s.length > max ? s.slice(0, max - 3) + '...' : s;
 
-  const invalidTokens: string[] = [];
-
-  for (const batch of chunk(tokens, 100)) {
-    const messages = batch.map((token) => ({ to: token, title, body, data }));
+async function sendExpoPushMessages(admin: AdminClient, messages: PushMessage[]) {
+  const chunkSize = 100;
+  for (let i = 0; i < messages.length; i += chunkSize) {
+    const batch = messages.slice(i, i + chunkSize);
     const res = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(messages),
+      body: JSON.stringify(batch.map((m) => ({ to: m.to, title: m.title, body: m.body, data: m.data }))),
     });
 
     if (!res.ok) {
@@ -32,28 +33,41 @@ async function sendExpoPush(tokens: string[], title: string, body: string, data:
 
     const json = await res.json();
     const tickets: Array<{ status: string; details?: { error?: string } }> = json?.data ?? [];
-    tickets.forEach((ticket, i) => {
+
+    for (let j = 0; j < tickets.length; j++) {
+      const ticket = tickets[j];
       if (ticket.status === 'error') {
         console.error('[push] ticket error', ticket.details);
         if (ticket.details?.error === 'DeviceNotRegistered') {
-          invalidTokens.push(batch[i]);
+          await admin
+            .from('push_tokens')
+            .delete()
+            .eq('token', batch[j].to)
+            .eq('user_id', batch[j].userId);
         }
       }
-    });
+    }
   }
-
-  return invalidTokens;
 }
 
-async function notify(admin: ReturnType<typeof createClient>, payload: NotificationPayload) {
+async function notify(admin: AdminClient, payload: {
+  targetUserId: string;
+  type: string;
+  title: string;
+  body: string;
+  data?: Record<string, string>;
+}) {
   const { targetUserId, type, title, body, data = {} } = payload;
 
-  const { error: insertError } = await admin
+  const { data: inserted, error: insertError } = await admin
     .from('notifications')
-    .insert({ user_id: targetUserId, type, title, body, data });
+    .insert({ user_id: targetUserId, type, title, body, data })
+    .select('id')
+    .single();
 
-  if (insertError) {
+  if (insertError || !inserted) {
     console.error('[notify] insert error', insertError);
+    return;
   }
 
   const { data: rows, error: tokenError } = await admin
@@ -69,15 +83,19 @@ async function notify(admin: ReturnType<typeof createClient>, payload: Notificat
   const tokens = (rows ?? []).map((r: { token: string }) => r.token);
   if (tokens.length === 0) return;
 
-  const invalidTokens = await sendExpoPush(tokens, title, body, data);
+  const messages: PushMessage[] = tokens.map((token) => ({
+    to: token,
+    userId: targetUserId,
+    title,
+    body,
+    data: { ...data, notificationId: inserted.id },
+  }));
 
-  if (invalidTokens.length > 0) {
-    await admin.from('push_tokens').delete().in('token', invalidTokens);
-  }
+  await sendExpoPushMessages(admin, messages);
 }
 
 async function getPartnerUserId(
-  admin: ReturnType<typeof createClient>,
+  admin: AdminClient,
   coupleId: string,
   excludeUserId: string,
 ): Promise<string | null> {
@@ -96,10 +114,7 @@ async function getPartnerUserId(
   return data?.user_id ?? null;
 }
 
-async function getPartnerNickname(
-  admin: ReturnType<typeof createClient>,
-  userId: string,
-): Promise<string> {
+async function getPartnerNickname(admin: AdminClient, userId: string): Promise<string> {
   const { data } = await admin
     .from('profiles')
     .select('couple_nickname, name')
@@ -109,7 +124,6 @@ async function getPartnerNickname(
 }
 
 Deno.serve(async (req) => {
-  // fail-closed: 시크릿 미설정 시 요청 거부
   const webhookSecret = Deno.env.get('WEBHOOK_SECRET');
   if (!webhookSecret) {
     console.error('[auth] WEBHOOK_SECRET not configured');
@@ -125,6 +139,8 @@ Deno.serve(async (req) => {
 
   // 1. 새 질문 등록 → 모든 커플 유저에게 batch 발송
   if (table === 'balance_games' && type === 'INSERT') {
+    if (!record?.id) return new Response('invalid record', { status: 400 });
+
     const { data: profiles, error } = await admin
       .from('profiles')
       .select('user_id')
@@ -135,25 +151,32 @@ Deno.serve(async (req) => {
       return new Response('error', { status: 500 });
     }
 
-    const userIds = (profiles ?? []).map((p: { user_id: string }) => p.user_id);
+    const userIds: string[] = (profiles ?? []).map((p: { user_id: string }) => p.user_id);
     if (userIds.length === 0) return new Response('ok');
 
     const title = '새로운 질문이 도착했어요!';
-    const body: string = record.question ?? '오늘의 밸런스 게임을 확인해보세요';
-    const truncatedBody = body.length > 100 ? body.slice(0, 97) + '...' : body;
+    const body = truncate(record.question ?? '오늘의 밸런스 게임을 확인해보세요');
+    const gameId = String(record.id);
 
-    // notifications batch insert
-    const notifRows = userIds.map((userId: string) => ({
+    const notifRows = userIds.map((userId) => ({
       user_id: userId,
       type: 'new_question',
       title,
-      body: truncatedBody,
-      data: { type: 'new_question', gameId: String(record.id) },
+      body,
+      data: { type: 'new_question', gameId },
     }));
-    const { error: notifError } = await admin.from('notifications').insert(notifRows);
+
+    const { data: insertedNotifs, error: notifError } = await admin
+      .from('notifications')
+      .insert(notifRows)
+      .select('id, user_id');
+
     if (notifError) console.error('[new_question] notification insert error', notifError);
 
-    // push tokens batch 조회
+    const notifIdMap = new Map<string, string>(
+      (insertedNotifs ?? []).map((n: { id: string; user_id: string }) => [n.user_id, n.id]),
+    );
+
     const { data: tokenRows, error: tokenError } = await admin
       .from('push_tokens')
       .select('user_id, token')
@@ -164,25 +187,32 @@ Deno.serve(async (req) => {
       return new Response('ok');
     }
 
-    const allTokens = (tokenRows ?? []).map((r: { token: string }) => r.token);
-    if (allTokens.length > 0) {
-      const invalidTokens = await sendExpoPush(allTokens, title, truncatedBody, {
-        type: 'new_question',
-        gameId: String(record.id),
-      });
-      if (invalidTokens.length > 0) {
-        await admin.from('push_tokens').delete().in('token', invalidTokens);
-      }
-    }
+    const messages: PushMessage[] = (tokenRows ?? []).map(
+      (r: { user_id: string; token: string }) => ({
+        to: r.token,
+        userId: r.user_id,
+        title,
+        body,
+        data: {
+          type: 'new_question',
+          gameId,
+          notificationId: notifIdMap.get(r.user_id) ?? '',
+        },
+      }),
+    );
 
+    if (messages.length > 0) await sendExpoPushMessages(admin, messages);
     return new Response('ok');
   }
 
   // 2. 파트너 첫 선택 → 상대방에게 발송
   if (table === 'game_answers' && type === 'INSERT') {
+    if (!record?.couple_id || !record?.user_id) return new Response('invalid record', { status: 400 });
+
     const partnerId = await getPartnerUserId(admin, record.couple_id, record.user_id);
     if (!partnerId) return new Response('ok');
     const nickname = await getPartnerNickname(admin, record.user_id);
+
     await notify(admin, {
       targetUserId: partnerId,
       type: 'partner_answer',
@@ -191,14 +221,12 @@ Deno.serve(async (req) => {
       data: { type: 'partner_answer', gameId: String(record.game_id) },
     });
 
-    // INSERT 시 이미 reason이 있으면 의견 알림도 발송
     if (record.reason) {
-      const truncated = record.reason.length > 100 ? record.reason.slice(0, 97) + '...' : record.reason;
       await notify(admin, {
         targetUserId: partnerId,
         type: 'partner_reason',
         title: `${nickname}님이 의견을 남겼어요!`,
-        body: truncated,
+        body: truncate(record.reason),
         data: { type: 'partner_reason', gameId: String(record.game_id) },
       });
     }
@@ -208,6 +236,8 @@ Deno.serve(async (req) => {
 
   // 3. 파트너 첫 의견 작성 → 상대방에게 발송
   if (table === 'game_answers' && type === 'UPDATE') {
+    if (!record?.couple_id || !record?.user_id) return new Response('invalid record', { status: 400 });
+
     const hadNoReason = !old_record?.reason;
     const hasReason = !!record.reason;
     if (!hadNoReason || !hasReason) return new Response('ok');
@@ -215,12 +245,12 @@ Deno.serve(async (req) => {
     const partnerId = await getPartnerUserId(admin, record.couple_id, record.user_id);
     if (!partnerId) return new Response('ok');
     const nickname = await getPartnerNickname(admin, record.user_id);
-    const truncated = record.reason.length > 100 ? record.reason.slice(0, 97) + '...' : record.reason;
+
     await notify(admin, {
       targetUserId: partnerId,
       type: 'partner_reason',
       title: `${nickname}님이 의견을 남겼어요!`,
-      body: truncated,
+      body: truncate(record.reason),
       data: { type: 'partner_reason', gameId: String(record.game_id) },
     });
     return new Response('ok');
@@ -228,6 +258,8 @@ Deno.serve(async (req) => {
 
   // 4. 파트너 스토리 업로드 → 상대방에게 발송
   if (table === 'stories' && type === 'INSERT') {
+    if (!record?.user_id) return new Response('invalid record', { status: 400 });
+
     const { data: profile } = await admin
       .from('profiles')
       .select('couple_id')
@@ -238,12 +270,13 @@ Deno.serve(async (req) => {
     const partnerId = await getPartnerUserId(admin, profile.couple_id, record.user_id);
     if (!partnerId) return new Response('ok');
     const nickname = await getPartnerNickname(admin, record.user_id);
+
     await notify(admin, {
       targetUserId: partnerId,
       type: 'story',
       title: `${nickname}님이 스토리를 올렸어요!`,
       body: '새로운 스토리를 확인해보세요 📷',
-      data: { type: 'story' },
+      data: { type: 'story', storyId: String(record.id) },
     });
     return new Response('ok');
   }
