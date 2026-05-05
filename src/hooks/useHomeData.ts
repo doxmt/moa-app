@@ -62,7 +62,8 @@ async function fetchHomeData(): Promise<HomeQueryResult> {
     const start = new Date(a.getFullYear(), a.getMonth(), a.getDate());
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    dDay = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const diff = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    dDay = diff >= 0 ? diff + 1 : null;
   }
 
   let balanceGame: BalanceGame | null = null;

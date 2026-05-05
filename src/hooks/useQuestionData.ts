@@ -190,12 +190,15 @@ export function useQuestionData() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('no user');
 
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('game_answers')
         .update({ reason: reason.trim() || null })
         .eq('game_id', gameId)
-        .eq('user_id', user.id);
+        .eq('couple_id', coupleId)
+        .eq('user_id', user.id)
+        .select('id');
       if (error) throw error;
+      if (!updated || updated.length === 0) throw new Error('답변이 없어 이유를 저장할 수 없어요');
 
       return { gameId, reason };
     },
