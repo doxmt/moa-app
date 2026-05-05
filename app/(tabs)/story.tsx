@@ -21,8 +21,6 @@ function isDateLocked(dateKey: string, premium: boolean): boolean {
 
 const PREVIEW_COUNT = 3;
 
-const todayKey = dateToDateStr(new Date());
-
 function groupByDate(stories: Story[]): { key: string; dateLabel: string; stories: Story[] }[] {
   const map: Record<string, Story[]> = {};
   for (const story of stories) {
@@ -115,6 +113,7 @@ function StorySection({
   onLockedPress: () => void;
 }) {
   const [showPast, setShowPast] = useState(false);
+  const todayKey = dateToDateStr(new Date());
   const allGroups = groupByDate(stories);
   const groups = showPast ? allGroups : allGroups.filter((g) => g.key === todayKey);
   const hasPast = allGroups.some((g) => g.key !== todayKey);
