@@ -258,18 +258,19 @@ Deno.serve(async (req) => {
 
   // 4. 파트너 스토리 업로드 → 상대방에게 발송
   if (table === 'stories' && type === 'INSERT') {
-    if (!record?.user_id) return new Response('invalid record', { status: 400 });
+    // stories 테이블은 user_id 대신 created_by 사용
+    if (!record?.created_by) return new Response('invalid record', { status: 400 });
 
     const { data: profile } = await admin
       .from('profiles')
       .select('couple_id')
-      .eq('user_id', record.user_id)
+      .eq('user_id', record.created_by)
       .maybeSingle();
     if (!profile?.couple_id) return new Response('ok');
 
-    const partnerId = await getPartnerUserId(admin, profile.couple_id, record.user_id);
+    const partnerId = await getPartnerUserId(admin, profile.couple_id, record.created_by);
     if (!partnerId) return new Response('ok');
-    const nickname = await getPartnerNickname(admin, record.user_id);
+    const nickname = await getPartnerNickname(admin, record.created_by);
 
     await notify(admin, {
       targetUserId: partnerId,
