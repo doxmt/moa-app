@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { useAuthStore } from '@/stores/authStore';
+import { useNotificationSetup } from '@/hooks/useNotificationSetup';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,6 +22,7 @@ function AuthGate() {
   const router = useRouter();
   const segments = useSegments();
   const { session, initialized, profileComplete, initialize } = useAuthStore();
+  useNotificationSetup();
 
   useEffect(() => {
     initialize();
