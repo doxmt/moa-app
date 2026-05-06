@@ -10,16 +10,6 @@ moa는 커플을 위한 React Native 앱입니다.
 연인과 일상을 기록하고 공유할 수 있는 커플 전용 플랫폼으로,
 기존 웹 서비스(Next.js)를 모바일 앱으로 전환한 프로젝트입니다.
 
-## 마이그레이션 원칙
-
-**웹 소스: `/Users/songtaeha/Desktop/moa`** (Next.js)
-
-새 기능을 자체 설계하지 말고, 반드시 웹 소스를 먼저 확인하고 그대로 마이그레이션한다.
-
-- 웹의 인증 방식, 데이터 구조, 화면 흐름을 기준으로 삼는다
-- 웹에 없는 기능은 사용자와 상의 후 추가
-- 마이그레이션 전 항상 `/Users/songtaeha/Desktop/moa/src/app` 해당 화면 코드 확인
-
 ## 기술 스택
 
 - **Expo SDK 53** + React 19 + React Native 0.79
@@ -122,9 +112,9 @@ git 작업(커밋/푸시/PR/머지)은 Claude가 Bash로 직접 실행한다.
 - 카드 border-radius: `rounded-2xl`
 - 카드 border: `border border-moa-border`
 
-### 마이그레이션 시 웹 색상 대응
+### 색상 하드코딩 금지
 
-웹 소스의 하드코딩 색상(`text-[#222222]` 등)은 위 토큰으로 치환해서 사용.
+하드코딩 색상(`text-[#222222]` 등) 대신 위 토큰 사용.
 
 ## Rules
 
