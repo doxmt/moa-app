@@ -196,7 +196,7 @@ export function useQuestionData() {
         .eq('game_id', gameId)
         .eq('couple_id', coupleId)
         .eq('user_id', user.id)
-        .select('id');
+        .select('game_id');
       if (error) throw error;
       if (!updated || updated.length === 0) throw new Error('답변이 없어 이유를 저장할 수 없어요');
 
