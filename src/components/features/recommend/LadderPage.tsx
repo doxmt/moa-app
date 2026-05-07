@@ -120,8 +120,10 @@ export function LadderPage({ onBack }: { onBack: () => void }) {
     let step = 1;
     intervalRef.current = setInterval(() => {
       if (step >= pts.length) {
-        clearInterval(intervalRef.current!);
-        intervalRef.current = null;
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
         setAnimDone(true);
         return;
       }

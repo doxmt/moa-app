@@ -87,6 +87,11 @@ export function RoulettePage({ onBack }: { onBack: () => void }) {
   const wheelSize = Math.min(width - 80, 280);
 
   useEffect(() => {
+    return () => { rotationAnim.stopAnimation(); };
+  }, [rotationAnim]);
+
+  useEffect(() => {
+    if (spinning) return;
     rotationAnim.setValue(0);
     rotationRef.current = 0;
     setResult(null);
@@ -177,12 +182,12 @@ export function RoulettePage({ onBack }: { onBack: () => void }) {
             placeholder={candidates.length >= 8 ? '최대 8개까지 추가 가능해요' : '후보를 입력하세요'}
             placeholderTextColor="#CCCCCC"
             returnKeyType="done"
-            editable={candidates.length < 8}
+            editable={!spinning && candidates.length < 8}
             className="flex-1 px-4 py-3 rounded-2xl border border-moa-border bg-white text-sm text-moa-text"
           />
           <TouchableOpacity
             onPress={addCandidate}
-            disabled={!input.trim() || candidates.length >= 8}
+            disabled={spinning || !input.trim() || candidates.length >= 8}
             className="px-4 py-3 rounded-2xl bg-moa-text items-center justify-center disabled:opacity-40"
           >
             <Text className="text-white text-sm font-semibold">추가</Text>

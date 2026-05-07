@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -62,6 +62,10 @@ export function DrawPage({ onBack }: { onBack: () => void }) {
   const [revealed, setRevealed] = useState<boolean[]>([]);
   const flipAnims = useRef(Array.from({ length: 9 }, () => new Animated.Value(1))).current;
   const { width } = useWindowDimensions();
+
+  useEffect(() => {
+    return () => { flipAnims.forEach((anim) => anim.stopAnimation()); };
+  }, [flipAnims]);
 
   const MAX = 9;
   const GRID_GAP = 10;
