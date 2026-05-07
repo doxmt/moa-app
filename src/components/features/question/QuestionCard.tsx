@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { GameItem } from '@/hooks/useQuestionData';
 
@@ -19,8 +19,12 @@ export default function QuestionCard({ game, myNickname, partnerNickname, onSubm
   const answered = game.myPicked !== null;
 
   const handleSave = async () => {
-    await onSaveReason(game.id, editValue);
-    setIsEditing(false);
+    try {
+      await onSaveReason(game.id, editValue);
+      setIsEditing(false);
+    } catch (e) {
+      Alert.alert('저장 실패', e instanceof Error ? e.message : '이유를 저장하지 못했어요.');
+    }
   };
 
   const handleStartEdit = () => {
@@ -63,9 +67,10 @@ export default function QuestionCard({ game, myNickname, partnerNickname, onSubm
           return (
             <TouchableOpacity
               key={opt}
-              onPress={() => !readOnly && onSubmitAnswer(game.id, opt)}
-              style={[styles.optionBtn, isMyPick ? styles.optionBtnActive : styles.optionBtnInactive, readOnly && { opacity: 0.5 }]}
-              activeOpacity={readOnly ? 1 : 0.7}
+              disabled={readOnly}
+              onPress={() => onSubmitAnswer(game.id, opt)}
+              style={[styles.optionBtn, isMyPick ? styles.optionBtnActive : styles.optionBtnInactive, readOnly && styles.optionBtnDisabled]}
+              activeOpacity={0.7}
             >
               <Text style={[styles.optionText, isMyPick && styles.optionTextActive]}>
                 {label}
@@ -170,6 +175,7 @@ const styles = StyleSheet.create({
   optionBtn: { flex: 1, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12, borderWidth: 2 },
   optionBtnActive: { backgroundColor: '#222222', borderColor: '#222222' },
   optionBtnInactive: { borderColor: '#222222' },
+  optionBtnDisabled: { opacity: 0.5 },
   optionText: { fontSize: 14, fontWeight: '500', color: '#222222', lineHeight: 18, textAlign: 'left' },
   optionTextActive: { color: '#FFFFFF' },
   optionNicknameActive: { fontSize: 10, marginTop: 4, color: '#FFFFFF' },

@@ -22,6 +22,7 @@ type QuestionData = {
   myNickname: string;
   partnerNickname: string | null;
   coupleId: string;
+  userId: string;
   isConnected: boolean;
 };
 
@@ -29,6 +30,7 @@ async function fetchQuestionData(): Promise<QuestionData> {
   const couple = await fetchCoupleBasic();
 
   if (!couple) {
+    const { data: { user } } = await supabase.auth.getUser();
     const { data: game, error } = await supabase
       .from('balance_games')
       .select('id, question, option_a, option_b')
@@ -52,11 +54,12 @@ async function fetchQuestionData(): Promise<QuestionData> {
         myNickname: '',
         partnerNickname: null,
         coupleId: '',
+        userId: user?.id ?? '',
         isConnected: false,
       };
     }
 
-    return { games: [], myNickname: '', partnerNickname: null, coupleId: '', isConnected: false };
+    return { games: [], myNickname: '', partnerNickname: null, coupleId: '', userId: user?.id ?? '', isConnected: false };
   }
 
   const { userId, coupleId, myNickname, partnerNickname } = couple;
@@ -69,7 +72,7 @@ async function fetchQuestionData(): Promise<QuestionData> {
   if (coupleError) throw coupleError;
 
   if (!coupleData?.created_at) {
-    return { games: [], myNickname, partnerNickname, coupleId, isConnected: true };
+    return { games: [], myNickname, partnerNickname, coupleId, userId, isConnected: true };
   }
 
   const refreshMinutes = coupleData.question_refresh_minutes ?? 0;
@@ -83,7 +86,7 @@ async function fetchQuestionData(): Promise<QuestionData> {
   if (gamesError) throw gamesError;
 
   if (!games || games.length === 0) {
-    return { games: [], myNickname, partnerNickname, coupleId, isConnected: true };
+    return { games: [], myNickname, partnerNickname, coupleId, userId, isConnected: true };
   }
 
   const { data: answers, error: answersError } = await supabase
@@ -96,12 +99,12 @@ async function fetchQuestionData(): Promise<QuestionData> {
 
   const myAnswers = new Map<string, AnswerInfo>(
     (answers ?? [])
-      .filter((a) => a.user_id === userId)
+      .filter((a) => a.user_id === userId && (a.selected_option === 'a' || a.selected_option === 'b'))
       .map((a) => [a.game_id, { option: a.selected_option as 'a' | 'b', reason: a.reason ?? null }]),
   );
   const partnerAnswers = new Map<string, AnswerInfo>(
     (answers ?? [])
-      .filter((a) => a.user_id !== userId)
+      .filter((a) => a.user_id !== userId && (a.selected_option === 'a' || a.selected_option === 'b'))
       .map((a) => [a.game_id, { option: a.selected_option as 'a' | 'b', reason: a.reason ?? null }]),
   );
 
@@ -130,6 +133,7 @@ async function fetchQuestionData(): Promise<QuestionData> {
     myNickname,
     partnerNickname,
     coupleId,
+    userId,
     isConnected: true,
   };
 }
@@ -148,15 +152,13 @@ export function useQuestionData() {
     mutationFn: async ({ gameId, option }: { gameId: string; option: 'a' | 'b' }) => {
       const cached = queryClient.getQueryData<QuestionData>(['question-data']);
       const coupleId = cached?.coupleId;
-      if (!coupleId) throw new Error('no coupleId');
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('no user');
+      const userId = cached?.userId;
+      if (!coupleId || !userId) throw new Error('no data');
 
       const { error } = await supabase.from('game_answers').upsert({
         game_id: gameId,
         couple_id: coupleId,
-        user_id: user.id,
+        user_id: userId,
         selected_option: option,
       });
       if (error) throw error;
@@ -166,18 +168,19 @@ export function useQuestionData() {
     onMutate: async ({ gameId, option }) => {
       await queryClient.cancelQueries({ queryKey: ['question-data'] });
       const prev = queryClient.getQueryData<QuestionData>(['question-data']);
+      const isToday = prev?.games.find((g) => g.id === gameId)?.isToday ?? false;
       queryClient.setQueryData<QuestionData>(['question-data'], (old) => {
         if (!old) return old;
         return { ...old, games: old.games.map((g) => (g.id === gameId ? { ...g, myPicked: option } : g)) };
       });
-      return { prev };
+      return { prev, isToday };
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(['question-data'], ctx.prev);
     },
-    onSettled: () => {
+    onSettled: (_data, _err, _vars, ctx) => {
       queryClient.invalidateQueries({ queryKey: ['question-data'] });
-      queryClient.invalidateQueries({ queryKey: ['home-data'] });
+      if (ctx?.isToday) queryClient.invalidateQueries({ queryKey: ['home-data'] });
     },
   });
 
@@ -185,17 +188,15 @@ export function useQuestionData() {
     mutationFn: async ({ gameId, reason }: { gameId: string; reason: string }) => {
       const cached = queryClient.getQueryData<QuestionData>(['question-data']);
       const coupleId = cached?.coupleId;
-      if (!coupleId) throw new Error('no coupleId');
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('no user');
+      const userId = cached?.userId;
+      if (!coupleId || !userId) throw new Error('no data');
 
       const { data: updated, error } = await supabase
         .from('game_answers')
         .update({ reason: reason.trim() || null })
         .eq('game_id', gameId)
         .eq('couple_id', coupleId)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .select('game_id');
       if (error) throw error;
       if (!updated || updated.length === 0) throw new Error('답변이 없어 이유를 저장할 수 없어요');

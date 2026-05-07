@@ -41,7 +41,7 @@ export default function QuestionScreen() {
         <Text className="text-xl font-bold text-moa-text">오늘의 질문</Text>
 
         {!isConnected && (
-          <View className="bg-moa-bg border border-moa-border rounded-2xl px-4 py-3" style={{ gap: 10, alignItems: 'center' }}>
+          <View className="bg-moa-bg border border-moa-border rounded-2xl px-4 py-3 gap-2.5 items-center">
             <Text className="text-xs text-moa-muted text-center leading-5">
               연결하면 서로의 선택과 의견을 볼 수 있어요
             </Text>
