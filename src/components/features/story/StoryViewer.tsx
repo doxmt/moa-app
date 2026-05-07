@@ -1,11 +1,11 @@
-import * as FileSystem from 'expo-file-system/legacy';
-import * as MediaLibrary from 'expo-media-library';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   PanResponder,
   Platform,
@@ -16,6 +16,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as MediaLibrary from 'expo-media-library';
 import Svg, { Path, Polyline } from 'react-native-svg';
 
 import { Story } from '@/lib/supabase/stories';
@@ -76,8 +78,10 @@ export default function StoryViewer({
 
   const viewerGroupRef = useRef(viewerGroup);
   const viewerIndexRef = useRef(viewerIndex);
-  viewerGroupRef.current = viewerGroup;
-  viewerIndexRef.current = viewerIndex;
+  useEffect(() => {
+    viewerGroupRef.current = viewerGroup;
+    viewerIndexRef.current = viewerIndex;
+  });
 
   const panResponder = useRef(
     PanResponder.create({
@@ -121,12 +125,26 @@ export default function StoryViewer({
   const handleSaveToGallery = async () => {
     if (!selected?.signed_url) return;
     const { status } = await MediaLibrary.requestPermissionsAsync();
-    if (status !== 'granted') return;
+    if (status !== 'granted') {
+      Alert.alert('권한 필요', '갤러리 저장을 위해 사진 접근 권한이 필요해요.', [
+        { text: '취소', style: 'cancel' },
+        { text: '설정 열기', onPress: () => Linking.openSettings() },
+      ]);
+      return;
+    }
+    const cacheDir = FileSystem.cacheDirectory;
+    if (!cacheDir) return;
     const filename = selected.storage_path.split('/').pop() ?? 'story.jpg';
-    const localUri = FileSystem.cacheDirectory + filename;
-    await FileSystem.downloadAsync(selected.signed_url, localUri);
-    await MediaLibrary.saveToLibraryAsync(localUri);
-    showToast();
+    const localUri = cacheDir + filename;
+    try {
+      await FileSystem.downloadAsync(selected.signed_url, localUri);
+      await MediaLibrary.saveToLibraryAsync(localUri);
+      showToast();
+    } catch {
+      Alert.alert('저장 실패', '사진을 갤러리에 저장하지 못했어요.');
+    } finally {
+      await FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => {});
+    }
   };
 
   const getDotStyle = (active: boolean) => ({
