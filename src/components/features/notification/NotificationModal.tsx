@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router';
-import { Alert, FlatList, Modal, Text, TouchableOpacity, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Animated, FlatList, Modal, PanResponder, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, MessageCircle, Check, MessageSquare, Camera, Heart, Gift, Clock, Bell } from 'lucide-react-native';
+import { X, MessageCircle, Check, MessageSquare, Camera, Heart, Gift, Clock, Bell, Trash2 } from 'lucide-react-native';
 
 import { AppNotification, NotificationType } from '@/lib/supabase/notifications';
 import { useNotificationData } from '@/hooks/useNotificationData';
@@ -41,76 +42,138 @@ function formatRelativeTime(dateStr: string): string {
   return `${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
 
+const DELETE_WIDTH = 72;
+
 function NotificationItem({
   item,
   onPress,
+  onDelete,
 }: {
   item: AppNotification;
   onPress: (item: AppNotification) => void;
+  onDelete: (id: string) => void;
 }) {
   const iconConfig = TYPE_ICON[item.type] ?? { icon: Bell, bg: '#F3F4F6', color: '#9CA3AF' };
   const IconComponent = iconConfig.icon;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const close = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    Animated.spring(translateX, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) =>
+        Math.abs(g.dx) > Math.abs(g.dy) && Math.abs(g.dx) > 6,
+      onPanResponderMove: (_, g) => {
+        const next = Math.max(-DELETE_WIDTH, Math.min(0, g.dx));
+        translateX.setValue(next);
+      },
+      onPanResponderRelease: (_, g) => {
+        const open = g.dx < -DELETE_WIDTH / 2;
+        Animated.spring(translateX, {
+          toValue: open ? -DELETE_WIDTH : 0,
+          useNativeDriver: true,
+          bounciness: 4,
+        }).start();
+        if (open) {
+          if (closeTimer.current) clearTimeout(closeTimer.current);
+          closeTimer.current = setTimeout(close, 2000);
+        }
+      },
+    }),
+  ).current;
 
   return (
-    <TouchableOpacity
-      onPress={() => onPress(item)}
-      activeOpacity={0.7}
-      className="flex-row items-center px-5 py-4"
-      style={{ backgroundColor: item.read ? '#FFFFFF' : '#FAFBFF' }}
-    >
-      {/* 안읽음 인디케이터 */}
+    <View style={{ overflow: 'hidden' }}>
+      {/* 삭제 버튼 (뒤에 배치) */}
       <View
         style={{
           position: 'absolute',
-          left: 0,
+          right: 0,
           top: 0,
           bottom: 0,
-          width: 3,
-          backgroundColor: item.read ? 'transparent' : '#6366F1',
-          borderRadius: 2,
-        }}
-      />
-
-      {/* 아이콘 */}
-      <View
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 14,
-          backgroundColor: iconConfig.bg,
+          width: DELETE_WIDTH,
+          backgroundColor: '#EF4444',
           alignItems: 'center',
           justifyContent: 'center',
-          marginRight: 12,
-          flexShrink: 0,
         }}
       >
-        <IconComponent size={20} color={iconConfig.color} strokeWidth={2} />
+        <TouchableOpacity
+          onPress={() => { close(); onDelete(item.id); }}
+          activeOpacity={0.8}
+          style={{ alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}
+        >
+          <Trash2 size={20} color="#FFFFFF" strokeWidth={2} />
+        </TouchableOpacity>
       </View>
 
-      {/* 텍스트 */}
-      <View style={{ flex: 1 }}>
-        <View className="flex-row items-center justify-between mb-0.5">
-          <Text
-            className="text-sm text-moa-text flex-1 mr-2"
-            style={{ fontWeight: item.read ? '500' : '700' }}
-            numberOfLines={1}
+      {/* 아이템 (앞에 배치) */}
+      <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
+        <TouchableOpacity
+          onPress={() => onPress(item)}
+          activeOpacity={0.7}
+          className="flex-row items-center px-5 py-4"
+          style={{ backgroundColor: item.read ? '#FFFFFF' : '#FAFBFF' }}
+        >
+          {/* 안읽음 인디케이터 */}
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 3,
+              backgroundColor: item.read ? 'transparent' : '#6366F1',
+              borderRadius: 2,
+            }}
+          />
+
+          {/* 아이콘 */}
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 14,
+              backgroundColor: iconConfig.bg,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 12,
+              flexShrink: 0,
+            }}
           >
-            {item.title}
-          </Text>
-          <Text className="text-xs text-moa-placeholder">{formatRelativeTime(item.created_at)}</Text>
-        </View>
-        <Text className="text-sm text-moa-sub leading-5" numberOfLines={2}>
-          {item.body}
-        </Text>
-      </View>
-    </TouchableOpacity>
+            <IconComponent size={20} color={iconConfig.color} strokeWidth={2} />
+          </View>
+
+          {/* 텍스트 */}
+          <View style={{ flex: 1 }}>
+            <View className="flex-row items-center justify-between mb-0.5">
+              <Text
+                className="text-sm text-moa-text flex-1 mr-2"
+                style={{ fontWeight: item.read ? '500' : '700' }}
+                numberOfLines={1}
+              >
+                {item.title}
+              </Text>
+              <Text className="text-xs text-moa-placeholder">{formatRelativeTime(item.created_at)}</Text>
+            </View>
+            <Text className="text-sm text-moa-sub leading-5" numberOfLines={2}>
+              {item.body}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
   );
 }
 
 export default function NotificationModal({ visible, onClose }: Props) {
   const { top } = useSafeAreaInsets();
   const router = useRouter();
-  const { notifications, isLoading, markAllAsRead, deleteAll, markAsRead } = useNotificationData();
+  const { notifications, isLoading, markAllAsRead, deleteAll, deleteOne, markAsRead } = useNotificationData();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleItemPress = async (item: AppNotification) => {
     if (!item.read) await markAsRead(item.id);
@@ -120,10 +183,12 @@ export default function NotificationModal({ visible, onClose }: Props) {
   };
 
   const handleDeleteAll = () => {
-    Alert.alert('전체 삭제', '모든 알림을 삭제하시겠어요?', [
-      { text: '취소', style: 'cancel' },
-      { text: '삭제', style: 'destructive', onPress: () => deleteAll() },
-    ]);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteAll = async () => {
+    setShowDeleteConfirm(false);
+    await deleteAll();
   };
 
   return (
@@ -180,10 +245,70 @@ export default function NotificationModal({ visible, onClose }: Props) {
             data={notifications}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <NotificationItem item={item} onPress={handleItemPress} />
+              <NotificationItem item={item} onPress={handleItemPress} onDelete={deleteOne} />
             )}
             ItemSeparatorComponent={() => <View className="h-px bg-moa-border mx-5" />}
           />
+        )}
+
+        {/* 전체 삭제 확인 다이얼로그 */}
+        {showDeleteConfirm && (
+          <View
+            style={{
+              position: 'absolute',
+              top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.45)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 20,
+                paddingVertical: 28,
+                paddingHorizontal: 24,
+                width: '78%',
+              }}
+            >
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#222222', marginBottom: 8 }}>
+                전체 삭제
+              </Text>
+              <Text style={{ fontSize: 14, color: '#888888', lineHeight: 20, marginBottom: 24 }}>
+                모든 알림을 삭제하시겠어요?{'\n'}삭제된 알림은 복구할 수 없어요.
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity
+                  onPress={() => setShowDeleteConfirm(false)}
+                  activeOpacity={0.7}
+                  style={{
+                    flex: 1,
+                    height: 44,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 12,
+                    backgroundColor: '#F3F4F6',
+                  }}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#888888' }}>취소</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={confirmDeleteAll}
+                  activeOpacity={0.7}
+                  style={{
+                    flex: 1,
+                    height: 44,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 12,
+                    backgroundColor: '#EF4444',
+                  }}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF' }}>삭제</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         )}
       </View>
     </Modal>
