@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -41,9 +41,10 @@ export default function CoupleInfoScreen() {
   const today = new Date();
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user || cancelled) return;
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -51,31 +52,34 @@ export default function CoupleInfoScreen() {
         .eq('user_id', user.id)
         .single();
 
-      if (!profile) return;
+      if (!profile || cancelled) return;
       setMyName(profile.name ?? '');
       setMyNickname(profile.couple_nickname ?? '');
       setCoupleId(profile.couple_id);
 
       if (profile.couple_id) {
-        const { data: couple } = await supabase
-          .from('couples')
-          .select('anniversary')
-          .eq('id', profile.couple_id)
-          .single();
+        const [{ data: couple }, { data: partner }] = await Promise.all([
+          supabase
+            .from('couples')
+            .select('anniversary')
+            .eq('id', profile.couple_id)
+            .single(),
+          supabase
+            .from('profiles')
+            .select('user_id, name, couple_nickname')
+            .eq('couple_id', profile.couple_id)
+            .neq('user_id', user.id)
+            .maybeSingle(),
+        ]);
+        if (cancelled) return;
         setAnniversary(fromIsoDate(couple?.anniversary ?? null));
-
-        const { data: partner } = await supabase
-          .from('profiles')
-          .select('user_id, name, couple_nickname')
-          .eq('couple_id', profile.couple_id)
-          .neq('user_id', user.id)
-          .single();
         setPartnerName(partner?.name ?? null);
         setPartnerNickname(partner?.couple_nickname ?? '');
         setPartnerId(partner?.user_id ?? null);
       }
     }
     load();
+    return () => { cancelled = true; };
   }, []);
 
   const handleSave = async () => {
@@ -83,16 +87,27 @@ export default function CoupleInfoScreen() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSaving(false); return; }
 
-    await supabase
+    const { error: profileErr } = await supabase
       .from('profiles')
       .update({ couple_nickname: myNickname.trim() || null })
       .eq('user_id', user.id);
 
+    if (profileErr) {
+      setSaving(false);
+      Alert.alert('오류', '저장에 실패했어요. 다시 시도해주세요.');
+      return;
+    }
+
     if (coupleId) {
-      await supabase
+      const { error: coupleErr } = await supabase
         .from('couples')
         .update({ anniversary: toIsoDate(anniversary) })
         .eq('id', coupleId);
+      if (coupleErr) {
+        setSaving(false);
+        Alert.alert('오류', '기념일 저장에 실패했어요. 다시 시도해주세요.');
+        return;
+      }
     }
 
     if (partnerId && coupleId) {

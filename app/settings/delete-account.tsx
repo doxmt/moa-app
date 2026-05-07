@@ -16,25 +16,34 @@ export default function DeleteAccountScreen() {
 
   const handleDeleteAccount = async () => {
     setDeleting(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { setDeleting(false); return; }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
 
-    const res = await fetch(
-      `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/delete-account`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      },
-    );
+      const res = await fetch(
+        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/delete-account`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        },
+      );
 
-    if (!res.ok) {
+      if (!res.ok) {
+        Alert.alert('오류', '탈퇴 처리 중 문제가 발생했어요. 다시 시도해주세요.');
+        return;
+      }
+
+      try {
+        await signOut();
+      } catch {
+        // signOut 실패해도 계정은 삭제됨 — 무시
+      }
+    } catch {
+      Alert.alert('오류', '네트워크 오류가 발생했어요. 다시 시도해주세요.');
+    } finally {
       setDeleting(false);
       setShowDialog(false);
-      Alert.alert('오류', '탈퇴 처리 중 문제가 발생했어요. 다시 시도해주세요.');
-      return;
     }
-
-    await signOut();
   };
 
   return (
