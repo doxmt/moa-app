@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,11 @@ import {
   Modal,
   StyleSheet,
 } from 'react-native';
-import Svg, { Path, Text as SvgText } from 'react-native-svg';
+import Svg, { Path, Text as SvgText, G, Rect, Circle } from 'react-native-svg';
 import { generateLadder, LADDER_ROWS } from './constants';
+
+const ANIM_INTERVAL = 150;
+const ACCENT = '#E8736A';
 
 export function LadderPage({ onBack }: { onBack: () => void }) {
   const [phase, setPhase] = useState<'players' | 'results' | 'ladder'>('players');
@@ -21,9 +24,19 @@ export function LadderPage({ onBack }: { onBack: () => void }) {
   const [bridges, setBridges] = useState<{ row: number; col: number }[]>([]);
   const [map, setMap] = useState<number[]>([]);
   const [showResults, setShowResults] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<number | null>(null);
+  const [animPath, setAnimPath] = useState<{ x: number; y: number }[]>([]);
+  const [animDone, setAnimDone] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { width } = useWindowDimensions();
   const MAX = 6;
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
 
   const addPlayer = () => {
     const trimmed = input.trim();
@@ -44,13 +57,31 @@ export function LadderPage({ onBack }: { onBack: () => void }) {
     setBridges(b);
     setMap(m);
     setShowResults(false);
+    setSelectedPlayer(null);
+    setAnimPath([]);
+    setAnimDone(false);
+    if (intervalRef.current) clearInterval(intervalRef.current);
     setPhase('ladder');
+  };
+
+  const resetGame = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setSelectedPlayer(null);
+    setAnimPath([]);
+    setAnimDone(false);
+    setPhase('players');
+    setPlayers([]);
+    setResults([]);
+    setInput('');
   };
 
   const handleBack = () => {
     if (phase === 'players') onBack();
     else if (phase === 'results') { setPhase('players'); setInput(''); }
-    else onBack();
+    else {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      onBack();
+    }
   };
 
   const n = players.length || 2;
@@ -62,6 +93,58 @@ export function LadderPage({ onBack }: { onBack: () => void }) {
   const BOTTOM = svgH - 44;
   const xOf = (i: number) => PADDING + i * colSpacing;
   const yOfRow = (row: number) => TOP + (row + 1) * (BOTTOM - TOP) / (LADDER_ROWS + 1);
+
+  const handlePlayerTap = (playerIndex: number) => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setAnimDone(false);
+    setSelectedPlayer(playerIndex);
+
+    // 경로 계산
+    let pos = playerIndex;
+    const pts: { x: number; y: number }[] = [{ x: xOf(playerIndex), y: TOP }];
+    for (let row = 0; row < LADDER_ROWS; row++) {
+      const y = yOfRow(row);
+      pts.push({ x: xOf(pos), y });
+      if (bridges.some((b) => b.row === row && b.col === pos)) {
+        pos++;
+        pts.push({ x: xOf(pos), y });
+      } else if (bridges.some((b) => b.row === row && b.col === pos - 1)) {
+        pos--;
+        pts.push({ x: xOf(pos), y });
+      }
+    }
+    pts.push({ x: xOf(pos), y: BOTTOM });
+
+    // 순차적으로 경로 공개
+    setAnimPath([pts[0]]);
+    let step = 1;
+    intervalRef.current = setInterval(() => {
+      if (step >= pts.length) {
+        clearInterval(intervalRef.current!);
+        intervalRef.current = null;
+        setAnimDone(true);
+        return;
+      }
+      setAnimPath(pts.slice(0, step + 1));
+      step++;
+    }, ANIM_INTERVAL);
+  };
+
+  const animPathD =
+    animPath.length > 1
+      ? animPath.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
+      : '';
+  const head = animPath.length > 0 ? animPath[animPath.length - 1] : null;
+  const destResult = selectedPlayer !== null && animDone ? map[selectedPlayer] : -1;
+
+  const hintText =
+    phase === 'ladder'
+      ? selectedPlayer === null
+        ? '이름을 눌러 사다리를 타보세요'
+        : animDone
+          ? `${players[selectedPlayer]} → ${results[map[selectedPlayer]]}`
+          : '사다리 타는 중...'
+      : '';
 
   return (
     <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -76,7 +159,7 @@ export function LadderPage({ onBack }: { onBack: () => void }) {
         <Text className="flex-1 text-base font-semibold text-moa-text">사다리타기</Text>
         {phase === 'ladder' && (
           <TouchableOpacity
-            onPress={() => { setPhase('players'); setPlayers([]); setResults([]); setInput(''); }}
+            onPress={resetGame}
             className="px-3 py-1.5 rounded-full bg-moa-text"
           >
             <Text className="text-xs font-semibold text-white">초기화</Text>
@@ -175,17 +258,15 @@ export function LadderPage({ onBack }: { onBack: () => void }) {
       )}
 
       {phase === 'ladder' && (
-        <View className="flex-1 px-5 pb-5 gap-4">
+        <View className="flex-1 px-5 pb-5 gap-3">
           <View className="flex-1 rounded-3xl border border-moa-border bg-white items-center justify-center py-4">
             <Svg width={svgW} height={svgH}>
-              {players.map((p, i) => (
-                <SvgText key={`pn-${i}`} x={xOf(i)} y={22} fontSize={11} textAnchor="middle" fill="#222222" fontWeight="600">
-                  {p.length > 5 ? p.slice(0, 4) + '…' : p}
-                </SvgText>
-              ))}
+              {/* 세로선 */}
               {players.map((_, i) => (
                 <Path key={`vl-${i}`} d={`M ${xOf(i)} ${TOP} L ${xOf(i)} ${BOTTOM}`} stroke="#E0E0E0" strokeWidth={2} />
               ))}
+
+              {/* 가로 bridge */}
               {bridges.map((b, i) => (
                 <Path
                   key={`br-${i}`}
@@ -194,13 +275,60 @@ export function LadderPage({ onBack }: { onBack: () => void }) {
                   strokeWidth={2}
                 />
               ))}
+
+              {/* 애니메이션 경로 */}
+              {animPathD ? (
+                <Path
+                  d={animPathD}
+                  stroke={ACCENT}
+                  strokeWidth={3}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              ) : null}
+
+              {/* 경로 선두 원 */}
+              {head && (
+                <Circle cx={head.x} cy={head.y} r={5} fill={ACCENT} />
+              )}
+
+              {/* 결과 텍스트 */}
               {results.map((r, i) => (
-                <SvgText key={`rn-${i}`} x={xOf(i)} y={svgH - 8} fontSize={11} textAnchor="middle" fill="#888888">
+                <SvgText
+                  key={`rn-${i}`}
+                  x={xOf(i)}
+                  y={svgH - 8}
+                  fontSize={11}
+                  textAnchor="middle"
+                  fill={destResult === i ? ACCENT : '#888888'}
+                  fontWeight={destResult === i ? '700' : '400'}
+                >
                   {r.length > 5 ? r.slice(0, 4) + '…' : r}
                 </SvgText>
               ))}
+
+              {/* 참가자 이름 (터치 레이어 — 마지막에 렌더) */}
+              {players.map((p, i) => (
+                <G key={`player-${i}`} onPress={() => handlePlayerTap(i)}>
+                  <Rect x={xOf(i) - 22} y={0} width={44} height={TOP} fill="transparent" />
+                  <SvgText
+                    x={xOf(i)}
+                    y={22}
+                    fontSize={11}
+                    textAnchor="middle"
+                    fill={selectedPlayer === i ? ACCENT : '#222222'}
+                    fontWeight="600"
+                  >
+                    {p.length > 5 ? p.slice(0, 4) + '…' : p}
+                  </SvgText>
+                </G>
+              ))}
             </Svg>
           </View>
+
+          <Text className="text-xs text-moa-muted text-center">{hintText}</Text>
+
           <TouchableOpacity
             onPress={() => setShowResults(true)}
             className="w-full py-4 rounded-2xl bg-moa-text items-center"
