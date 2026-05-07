@@ -20,17 +20,17 @@ export default function BalanceGameCard({ game, partnerNickname, onSubmitAnswer,
   return (
     <View style={styles.card}>
       <View className="flex-row items-center justify-between mb-4">
-        <Text className="text-xs font-semibold text-[#888888] uppercase tracking-widest">
+        <Text className="text-xs font-semibold text-moa-sub uppercase tracking-widest">
           Balance Game
         </Text>
         <TouchableOpacity onPress={onNavigateToQuestion}>
-          <Text className="text-xs text-[#888888] underline">이유 적으러 가기</Text>
+          <Text className="text-xs text-moa-sub underline">이유 적으러 가기</Text>
         </TouchableOpacity>
       </View>
 
       {game ? (
         <>
-          <Text className="text-base font-semibold text-[#222222] text-center leading-snug mb-3">
+          <Text className="text-base font-semibold text-moa-text text-center leading-snug mb-3">
             {game.question}
           </Text>
           <View className="flex-row gap-3">
@@ -41,7 +41,8 @@ export default function BalanceGameCard({ game, partnerNickname, onSubmitAnswer,
                 <TouchableOpacity
                   key={opt}
                   onPress={() => !readOnly && onSubmitAnswer(opt)}
-                  style={[styles.optionButton, isPicked ? styles.optionPicked : styles.optionDefault, readOnly && { opacity: 0.5 }]}
+                  style={[styles.optionButton, isPicked ? styles.optionPicked : styles.optionDefault]}
+                  className={readOnly ? 'opacity-50' : ''}
                   activeOpacity={readOnly ? 1 : 0.8}
                 >
                   <Text
@@ -56,9 +57,9 @@ export default function BalanceGameCard({ game, partnerNickname, onSubmitAnswer,
           </View>
 
           {game.myPicked && (
-            <Text className="text-xs text-[#888888] text-center mt-3">
+            <Text className="text-xs text-moa-sub text-center mt-3">
               {partnerNickname ?? '상대방'}님의 선택 :{' '}
-              <Text className="font-semibold text-[#222222]">
+              <Text className="font-semibold text-moa-text">
                 {game.partnerPicked
                   ? `${game.partnerPicked.toUpperCase()}. ${game.partnerPicked === 'a' ? game.optionA : game.optionB}`
                   : '아직 선택 안 함'}
@@ -67,7 +68,7 @@ export default function BalanceGameCard({ game, partnerNickname, onSubmitAnswer,
           )}
         </>
       ) : (
-        <Text className="text-sm text-[#CCCCCC] text-center py-2">게임을 불러오는 중...</Text>
+        <Text className="text-sm text-moa-placeholder text-center py-2">게임을 불러오는 중...</Text>
       )}
     </View>
   );
