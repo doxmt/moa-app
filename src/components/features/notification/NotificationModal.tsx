@@ -1,7 +1,8 @@
-import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
-import { Animated, FlatList, Modal, PanResponder, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Alert, Animated, FlatList, Modal, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import { X, MessageCircle, Check, MessageSquare, Camera, Heart, Gift, Clock, Bell, Trash2 } from 'lucide-react-native';
 
 import { AppNotification, NotificationType } from '@/lib/supabase/notifications';
@@ -57,6 +58,10 @@ function NotificationItem({
   const IconComponent = iconConfig.icon;
   const translateX = useRef(new Animated.Value(0)).current;
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => { if (closeTimer.current) clearTimeout(closeTimer.current); };
+  }, []);
 
   const close = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -173,22 +178,23 @@ export default function NotificationModal({ visible, onClose }: Props) {
   const { top } = useSafeAreaInsets();
   const router = useRouter();
   const { notifications, isLoading, markAllAsRead, deleteAll, deleteOne, markAsRead } = useNotificationData();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const handleItemPress = async (item: AppNotification) => {
-    if (!item.read) await markAsRead(item.id);
+  const handleItemPress = (item: AppNotification) => {
+    if (!item.read) markAsRead(item.id).catch((e) => console.error('[markAsRead]', e));
     onClose();
     const route = getRouteForNotificationType(item.type);
-    router.push(route as any);
+    router.push(route as Href);
   };
 
   const handleDeleteAll = () => {
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDeleteAll = async () => {
-    setShowDeleteConfirm(false);
-    await deleteAll();
+    Alert.alert(
+      '전체 삭제',
+      '모든 알림을 삭제하시겠어요?\n삭제된 알림은 복구할 수 없어요.',
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '삭제', style: 'destructive', onPress: () => deleteAll().catch((e) => console.error('[deleteAll]', e)) },
+      ]
+    );
   };
 
   return (
@@ -232,7 +238,7 @@ export default function NotificationModal({ visible, onClose }: Props) {
           </View>
         ) : notifications.length === 0 ? (
           <View className="flex-1 items-center justify-center gap-3">
-            <View style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={styles.emptyBellWrap}>
               <Bell size={28} color="#D1D5DB" strokeWidth={1.5} />
             </View>
             <View className="items-center gap-1">
@@ -251,66 +257,18 @@ export default function NotificationModal({ visible, onClose }: Props) {
           />
         )}
 
-        {/* 전체 삭제 확인 다이얼로그 */}
-        {showDeleteConfirm && (
-          <View
-            style={{
-              position: 'absolute',
-              top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: 'rgba(0,0,0,0.45)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <View
-              style={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: 20,
-                paddingVertical: 28,
-                paddingHorizontal: 24,
-                width: '78%',
-              }}
-            >
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#222222', marginBottom: 8 }}>
-                전체 삭제
-              </Text>
-              <Text style={{ fontSize: 14, color: '#888888', lineHeight: 20, marginBottom: 24 }}>
-                모든 알림을 삭제하시겠어요?{'\n'}삭제된 알림은 복구할 수 없어요.
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <TouchableOpacity
-                  onPress={() => setShowDeleteConfirm(false)}
-                  activeOpacity={0.7}
-                  style={{
-                    flex: 1,
-                    height: 44,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: 12,
-                    backgroundColor: '#F3F4F6',
-                  }}
-                >
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#888888' }}>취소</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={confirmDeleteAll}
-                  activeOpacity={0.7}
-                  style={{
-                    flex: 1,
-                    height: 44,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: 12,
-                    backgroundColor: '#EF4444',
-                  }}
-                >
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF' }}>삭제</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )}
       </View>
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  emptyBellWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
