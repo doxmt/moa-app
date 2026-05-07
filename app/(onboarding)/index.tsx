@@ -30,7 +30,7 @@ function toIsoDate(d: DateVal) {
 export default function OnboardingScreen() {
   const router = useRouter();
   const { top, bottom } = useSafeAreaInsets();
-  const { signOut } = useAuthStore();
+  const { signOut, setProfileComplete } = useAuthStore();
   const [step, setStep] = useState<Step>('profile');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,20 +59,14 @@ export default function OnboardingScreen() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setError('로그인이 필요합니다'); setLoading(false); return; }
 
-    const { data: updated, error: updateErr } = await supabase
+    const { error: upsertErr } = await supabase
       .from('profiles')
-      .update({ name: name.trim(), birthday: toIsoDate(birthday) })
-      .eq('user_id', user.id)
-      .select('user_id');
+      .upsert(
+        { user_id: user.id, name: name.trim(), birthday: toIsoDate(birthday) },
+        { onConflict: 'user_id' }
+      );
 
-    if (updateErr) { setError(updateErr.message); setLoading(false); return; }
-
-    if (!updated || updated.length === 0) {
-      const { error: insertErr } = await supabase
-        .from('profiles')
-        .insert({ user_id: user.id, name: name.trim(), birthday: toIsoDate(birthday), nickname: name.trim() });
-      if (insertErr) { setError(insertErr.message); setLoading(false); return; }
-    }
+    if (upsertErr) { setError(upsertErr.message); setLoading(false); return; }
 
     setLoading(false);
     setStep('couple');
@@ -162,6 +156,7 @@ export default function OnboardingScreen() {
       return;
     }
 
+    setProfileComplete(true);
     setLoading(false);
     router.replace('/(tabs)/home');
   };
@@ -323,7 +318,7 @@ export default function OnboardingScreen() {
             {error && <Text className="text-xs text-red-500">{error}</Text>}
 
             <TouchableOpacity
-              onPress={() => router.replace('/(tabs)/home')}
+              onPress={() => { setProfileComplete(true); router.replace('/(tabs)/home'); }}
               activeOpacity={0.7}
               className="items-center py-2"
             >
@@ -360,7 +355,7 @@ export default function OnboardingScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => router.replace('/(tabs)/home')}
+              onPress={() => { setProfileComplete(true); router.replace('/(tabs)/home'); }}
               activeOpacity={0.8}
               className="h-12 rounded-xl bg-moa-text items-center justify-center"
             >

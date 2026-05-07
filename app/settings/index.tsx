@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import Constants from 'expo-constants';
 import { Check, ChevronLeft, ChevronRight, Copy } from 'lucide-react-native';
 
 import { supabase } from '@/lib/supabase/client';
@@ -190,9 +191,15 @@ export default function SettingsScreen() {
             value={formatRefreshMinutes(refreshMinutes)}
             onPress={() => router.push('/settings/question-hour')}
           />
-          <Row label="알림 설정" onPress={() => {}} />
-          <Row label="문의하기" onPress={() => {}} />
-          <Row label="버전 정보" value="1.0.0" onPress={() => {}} />
+          <Row label="알림 설정" onPress={() => Linking.openSettings()} />
+          <Row label="문의하기" onPress={() => Linking.openURL('mailto:team.moa.app@gmail.com')} />
+          <Row
+            label="버전 정보"
+            value={Constants.expoConfig?.version ?? '1.0.0'}
+            onPress={() =>
+              Alert.alert('버전 정보', `moa v${Constants.expoConfig?.version ?? '1.0.0'}`)
+            }
+          />
         </Section>
 
         <Section title="계정">
