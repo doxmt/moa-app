@@ -136,7 +136,7 @@ export function DetailPage({ category, onBack }: { category: Category; onBack: (
                   {picked.name}
                 </Text>
                 {picked.genre && (
-                  <View className="px-3 py-1 rounded-full bg-[#F5F5F5]">
+                  <View className="px-3 py-1 rounded-full bg-moa-bg">
                     <Text className="text-xs text-moa-sub">{picked.genre}</Text>
                   </View>
                 )}

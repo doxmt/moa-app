@@ -47,14 +47,14 @@ export default function HomeScreen() {
       <View className="flex-1 px-5 py-4">
         {/* 커플 섹션 */}
         <View className="flex-1 items-center">
-          <Text className="text-base font-semibold text-[#222222] tracking-wide">
+          <Text className="text-base font-semibold text-moa-text tracking-wide">
             {data?.myNickname ?? '나'}
             <Text className="text-red-400"> ♥ </Text>
             {data?.partnerNickname != null ? (
               <Text>{data.partnerNickname}</Text>
             ) : (
               <Text
-                className="text-[#CCCCCC] underline font-semibold"
+                className="text-moa-placeholder underline font-semibold"
                 onPress={() => router.push('/settings/connect' as never)}
               >
                 연결하기
@@ -64,13 +64,13 @@ export default function HomeScreen() {
 
           <View className="mt-1">
             {data?.dDay != null ? (
-              <Text className="text-sm text-[#888888]">
+              <Text className="text-sm text-moa-sub">
                 사랑한 지{' '}
-                <Text className="font-semibold text-[#222222]">{data.dDay}일</Text>
+                <Text className="font-semibold text-moa-text">{data.dDay}일</Text>
               </Text>
             ) : (
               <Text
-                className="text-sm text-[#AAAAAA] underline"
+                className="text-sm text-moa-muted underline"
                 onPress={() => router.push('/settings/couple' as never)}
               >
                 사귄 날을 설정해보세요

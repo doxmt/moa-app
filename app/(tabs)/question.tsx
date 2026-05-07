@@ -38,7 +38,7 @@ export default function QuestionScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>오늘의 질문</Text>
+        <Text className="text-xl font-bold text-moa-text">오늘의 질문</Text>
 
         {!isConnected && (
           <View className="bg-moa-bg border border-moa-border rounded-2xl px-4 py-3" style={{ gap: 10, alignItems: 'center' }}>
@@ -100,7 +100,6 @@ export default function QuestionScreen() {
 const styles = StyleSheet.create({
   flex1: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingVertical: 20, gap: 16, paddingBottom: 96 },
-  title: { fontSize: 20, fontWeight: '700', color: '#222222' },
   toggleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 },
   toggleText: { fontSize: 14, fontWeight: '500', color: '#888888' },
   toggleArrow: { fontSize: 18, color: '#888888', transform: [{ rotate: '90deg' }] },

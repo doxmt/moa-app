@@ -255,7 +255,7 @@ export default function CalendarScreen() {
                         <Text style={styles.avatarText}>{getEventIcon(event)}</Text>
                       </View>
                       <Text style={styles.ownerLabel}>{getEventOwnerLabel(event)}</Text>
-                      {!event.isBirthday && (
+                      {!event.isBirthday && event.created_by === userId && (
                         <TouchableOpacity
                           onPress={() =>
                             Alert.alert('일정 삭제', '이 일정을 삭제할까요?', [
