@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -36,9 +36,10 @@ export default function ProfileEditScreen() {
   const today = new Date();
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user || cancelled) return;
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -46,11 +47,12 @@ export default function ProfileEditScreen() {
         .eq('user_id', user.id)
         .single();
 
-      if (!profile) return;
+      if (!profile || cancelled) return;
       setName(profile.name ?? '');
       setBirthday(fromIsoDate(profile.birthday));
     }
     load();
+    return () => { cancelled = true; };
   }, []);
 
   const handleSave = async () => {
@@ -60,12 +62,16 @@ export default function ProfileEditScreen() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSaving(false); return; }
 
-    await supabase
+    const { error } = await supabase
       .from('profiles')
       .update({ name: name.trim(), birthday: toIsoDate(birthday) })
       .eq('user_id', user.id);
 
     setSaving(false);
+    if (error) {
+      Alert.alert('오류', '저장에 실패했어요. 다시 시도해주세요.');
+      return;
+    }
     router.back();
   };
 

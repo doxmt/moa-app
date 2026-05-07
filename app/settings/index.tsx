@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Alert, Linking, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -74,11 +74,15 @@ export default function SettingsScreen() {
   const [disconnecting, setDisconnecting] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useFocusEffect(
     useCallback(() => {
+      let cancelled = false;
+
       async function load() {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user || cancelled) return;
 
         const { data: myProfile } = await supabase
           .from('profiles')
@@ -86,7 +90,7 @@ export default function SettingsScreen() {
           .eq('user_id', user.id)
           .single();
 
-        if (!myProfile) return;
+        if (!myProfile || cancelled) return;
 
         let partnerName: string | null = null;
         if (myProfile.couple_id) {
@@ -97,13 +101,14 @@ export default function SettingsScreen() {
               .select('name')
               .eq('couple_id', myProfile.couple_id)
               .neq('user_id', user.id)
-              .single(),
+              .maybeSingle(),
             supabase
               .from('couples')
               .select('question_refresh_minutes, invite_code')
               .eq('id', myProfile.couple_id)
               .single(),
           ]);
+          if (cancelled) return;
           partnerName = partner?.name ?? null;
           setRefreshMinutes(couple?.question_refresh_minutes ?? 0);
           setInviteCode(couple?.invite_code ?? null);
@@ -114,7 +119,9 @@ export default function SettingsScreen() {
 
         setProfile({ name: myProfile.name, partnerName });
       }
+
       load();
+      return () => { cancelled = true; };
     }, [])
   );
 
@@ -125,18 +132,23 @@ export default function SettingsScreen() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setDisconnecting(false); return; }
 
-    // 내 couple_id를 null로
-    await supabase
+    const { error: updateErr } = await supabase
       .from('profiles')
       .update({ couple_id: null })
       .eq('user_id', user.id);
 
-    // 상대방도 이미 끊었는지 확인 (couple_id가 남아있는 파트너가 없으면)
+    if (updateErr) {
+      setDisconnecting(false);
+      Alert.alert('오류', '연결 끊기에 실패했어요. 다시 시도해주세요.');
+      return;
+    }
+
+    // 상대방도 이미 끊었는지 확인
     const { data: stillConnected } = await supabase
       .from('profiles')
       .select('user_id')
       .eq('couple_id', coupleId)
-      .single();
+      .maybeSingle();
 
     if (!stillConnected) {
       // 둘 다 끊김 → 30일 후 만료
@@ -233,9 +245,10 @@ export default function SettingsScreen() {
                 <Text className="text-xl font-bold text-moa-text tracking-widest">{inviteCode.toUpperCase()}</Text>
                 <TouchableOpacity
                   onPress={async () => {
-                    await Clipboard.setStringAsync(inviteCode!);
+                    await Clipboard.setStringAsync(inviteCode);
                     setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
+                    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+                    copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
                   }}
                   activeOpacity={0.7}
                   className="flex-row items-center gap-1"

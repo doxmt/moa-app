@@ -3,7 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from './client';
 
 export const FREE_DAILY_LIMIT = 3;
-const LOCK_AFTER_DAYS = 7;
+export const LOCK_AFTER_DAYS = 7;
 
 export type Story = {
   id: string;

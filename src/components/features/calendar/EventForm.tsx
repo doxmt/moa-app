@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -93,6 +93,11 @@ export default function EventForm({ visible, initialDate, submitting, onClose, o
     setShowEndPicker(false);
     setDescription('');
   };
+
+  useEffect(() => {
+    if (visible) reset();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, initialDate]);
 
   const handleClose = () => {
     reset();

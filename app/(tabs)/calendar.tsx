@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   Alert,
   ScrollView,
@@ -48,8 +48,10 @@ export default function CalendarScreen() {
     removeEvent,
   } = useCalendarData()
 
-  const today = new Date()
-  const todayStr = toDateStr(today.getFullYear(), today.getMonth() + 1, today.getDate())
+  const todayStr = useMemo(() => {
+    const t = new Date()
+    return toDateStr(t.getFullYear(), t.getMonth() + 1, t.getDate())
+  }, [])
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -57,15 +59,18 @@ export default function CalendarScreen() {
   const [maxFutureDays, setMaxFutureDays] = useState(1000)
 
   // 달력 셀 배열
-  const firstDay = new Date(year, month - 1, 1).getDay()
-  const daysInMonth = new Date(year, month, 0).getDate()
-  const cells: (number | null)[] = [
-    ...Array(firstDay).fill(null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ]
-  while (cells.length % 7 !== 0) cells.push(null)
-  const rows: (number | null)[][] = []
-  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7))
+  const rows = useMemo(() => {
+    const firstDay = new Date(year, month - 1, 1).getDay()
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const cells: (number | null)[] = [
+      ...Array(firstDay).fill(null),
+      ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+    ]
+    while (cells.length % 7 !== 0) cells.push(null)
+    const r: (number | null)[][] = []
+    for (let i = 0; i < cells.length; i += 7) r.push(cells.slice(i, i + 7))
+    return r
+  }, [year, month])
 
   const selectedEvents = selectedDate ? (eventsByDate[selectedDate] ?? []) : []
 
@@ -89,7 +94,7 @@ export default function CalendarScreen() {
   }
 
   // 마일스톤 계산
-  const milestoneList = (() => {
+  const milestoneList = useMemo(() => {
     if (!anniversary) return null
 
     const todayD = new Date()
@@ -147,7 +152,7 @@ export default function CalendarScreen() {
     }
 
     return { milestones, totalDays }
-  })()
+  }, [anniversary, maxFutureDays])
 
   const getEventIcon = (event: DisplayEvent) => {
     if (event.id.startsWith('holiday-')) return '⚪️'

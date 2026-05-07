@@ -76,9 +76,10 @@ export function useCalendarData() {
   })
 
   useEffect(() => {
+    let cancelled = false
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user || cancelled) return
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -86,6 +87,7 @@ export function useCalendarData() {
         .eq('user_id', user.id)
         .single()
 
+      if (cancelled) return
       if (!profile?.couple_id) {
         setState((prev) => ({ ...prev, loading: false, isConnected: false }))
         return
@@ -105,6 +107,7 @@ export function useCalendarData() {
           .single(),
       ])
 
+      if (cancelled) return
       const toMMDD = (s: string | null) => (s ? s.slice(5) : null)
 
       setState((prev) => ({
@@ -122,22 +125,28 @@ export function useCalendarData() {
       }))
     }
     init()
+    return () => { cancelled = true }
   }, [])
 
   useEffect(() => {
     if (!state.coupleId) return
+    let cancelled = false
 
     async function load() {
       setState((prev) => ({ ...prev, loading: true }))
       try {
         const events = await getEventsByMonth(state.coupleId, state.year, state.month)
+        if (cancelled) return
         setState((prev) => ({ ...prev, events, loading: false }))
-      } catch {
+      } catch (e) {
+        if (cancelled) return
+        console.error('[calendar] load events failed', e)
         setState((prev) => ({ ...prev, loading: false }))
       }
     }
 
     load()
+    return () => { cancelled = true }
   }, [state.coupleId, state.year, state.month])
 
   const goToPrevMonth = useCallback(() => {
@@ -167,7 +176,8 @@ export function useCalendarData() {
           ),
           submitting: false,
         }))
-      } catch {
+      } catch (e) {
+        console.error('[calendar] createEvent failed', e)
         setState((prev) => ({ ...prev, submitting: false }))
       }
     },
@@ -176,12 +186,17 @@ export function useCalendarData() {
 
   const removeEvent = useCallback(
     async (eventId: string) => {
+      const { coupleId, year, month } = state
       setState((prev) => ({ ...prev, events: prev.events.filter((e) => e.id !== eventId) }))
       try {
         await deleteEvent(eventId)
-      } catch {
-        const events = await getEventsByMonth(state.coupleId, state.year, state.month)
-        setState((prev) => ({ ...prev, events }))
+      } catch (e) {
+        console.error('[calendar] removeEvent failed', e)
+        const events = await getEventsByMonth(coupleId, year, month)
+        setState((prev) => {
+          if (prev.coupleId !== coupleId || prev.year !== year || prev.month !== month) return prev
+          return { ...prev, events }
+        })
       }
     },
     [state.coupleId, state.year, state.month]
@@ -254,12 +269,12 @@ export function useCalendarData() {
   const allEvents: DisplayEvent[] = [...state.events, ...birthdayEvents, ...holidayEvents]
 
   const eventsByDate = allEvents.reduce<Record<string, DisplayEvent[]>>((acc, event) => {
-    const start = new Date(event.start_date)
-    const end = new Date(event.end_date)
+    const start = new Date(`${event.start_date}T00:00:00`)
+    const end = new Date(`${event.end_date}T00:00:00`)
     const cursor = new Date(start)
 
     while (cursor <= end) {
-      const key = cursor.toISOString().slice(0, 10)
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`
       if (!acc[key]) acc[key] = []
       acc[key].push(event)
       cursor.setDate(cursor.getDate() + 1)

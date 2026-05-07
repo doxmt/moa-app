@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -19,15 +19,28 @@ export function DetailPage({ category, onBack }: { category: Category; onBack: (
   const [loading, setLoading] = useState(true);
   const [picking, setPicking] = useState(false);
   const [imageReady, setImageReady] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
     Promise.all([
       getRecommendations(category.id),
       getGenreImages(category.id),
     ]).then(([data, images]) => {
+      if (cancelled) return;
       setItems(data);
       setGenreImages(images);
-    }).finally(() => setLoading(false));
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
   }, [category.id]);
 
   const pool = genre === '전체' ? items : items.filter((i) => i.genre === genre);
@@ -47,10 +60,10 @@ export function DetailPage({ category, onBack }: { category: Category; onBack: (
       const start = Date.now();
       Image.prefetch(imageUrl).finally(() => {
         const elapsed = Date.now() - start;
-        setTimeout(show, Math.max(0, 800 - elapsed));
+        timeoutRef.current = setTimeout(show, Math.max(0, 800 - elapsed));
       });
     } else {
-      setTimeout(show, 800);
+      timeoutRef.current = setTimeout(show, 800);
     }
   };
 

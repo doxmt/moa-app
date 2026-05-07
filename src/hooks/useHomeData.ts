@@ -58,8 +58,8 @@ async function fetchHomeData(): Promise<HomeQueryResult> {
 
   let dDay: number | null = null;
   if (coupleData?.anniversary) {
-    const a = new Date(coupleData.anniversary);
-    const start = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+    const [y, m, d] = coupleData.anniversary.split('-').map(Number);
+    const start = new Date(y, m - 1, d);
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const diff = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
@@ -94,6 +94,7 @@ async function fetchHomeData(): Promise<HomeQueryResult> {
           .eq('game_id', game.id)
           .eq('couple_id', coupleId)
           .neq('user_id', userId)
+          .limit(1)
           .maybeSingle(),
       ]);
       if (myErr) throw myErr;
@@ -189,6 +190,7 @@ export function useHomeData() {
     loading: isLoading,
     uploading: uploadPhotoMutation.isPending,
     previewGame: result?.previewGame ?? null,
+    isSubmitting: submitAnswerMutation.isPending,
     submitAnswer: (option: 'a' | 'b') => submitAnswerMutation.mutate(option),
     uploadPhoto: (uri: string) => uploadPhotoMutation.mutateAsync(uri),
   };

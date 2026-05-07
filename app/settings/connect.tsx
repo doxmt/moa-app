@@ -19,7 +19,33 @@ export default function ConnectScreen() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    async function init() {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) { if (!cancelled) setLoading(false); return; }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('couple_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (cancelled) return;
+      if (!profile?.couple_id) { setLoading(false); return; }
+
+      const { data: couple } = await supabase
+        .from('couples')
+        .select('invite_code')
+        .eq('id', profile.couple_id)
+        .single();
+
+      if (cancelled) return;
+      setInviteCode(couple?.invite_code ?? null);
+      setLoading(false);
+    }
+    init();
+    return () => { cancelled = true; };
   }, []);
 
   async function load() {
@@ -172,9 +198,13 @@ export default function ConnectScreen() {
 
   const handleShare = async () => {
     if (!inviteCode) return;
-    await Share.share({
-      message: `모아(MOA)에서 함께 기록을 시작해요 💌\n초대 코드: ${inviteCode.toUpperCase()}`,
-    });
+    try {
+      await Share.share({
+        message: `모아(MOA)에서 함께 기록을 시작해요 💌\n초대 코드: ${inviteCode.toUpperCase()}`,
+      });
+    } catch {
+      // user dismissed share sheet
+    }
   };
 
   return (

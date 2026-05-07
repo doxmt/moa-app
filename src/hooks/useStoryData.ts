@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 
 import { fetchCoupleBasic } from '@/lib/supabase/profile';
 import { FREE_DAILY_LIMIT, Story, addStory, deleteStory, getStories, updateCaption } from '@/lib/supabase/stories';
@@ -79,22 +80,28 @@ export function useStoryData() {
           stories: [newStory, ...prev.stories],
           submitting: false,
         }));
-      } catch {
+      } catch (e) {
         setState((prev) => ({ ...prev, submitting: false }));
+        Alert.alert('업로드 실패', e instanceof Error ? e.message : '스토리를 업로드하지 못했어요.');
       }
     },
     [state.coupleId]
   );
 
   const editCaption = useCallback(async (storyId: string, caption: string | null) => {
-    setState((prev) => ({
-      ...prev,
-      stories: prev.stories.map((s) => (s.id === storyId ? { ...s, caption } : s)),
-    }));
+    let prevCaption: string | null = null;
+    setState((prev) => {
+      prevCaption = prev.stories.find((s) => s.id === storyId)?.caption ?? null;
+      return { ...prev, stories: prev.stories.map((s) => (s.id === storyId ? { ...s, caption } : s)) };
+    });
     try {
       await updateCaption(storyId, caption);
-    } catch {
-      // 실패 시 롤백 생략
+    } catch (e) {
+      setState((prev) => ({
+        ...prev,
+        stories: prev.stories.map((s) => (s.id === storyId ? { ...s, caption: prevCaption } : s)),
+      }));
+      Alert.alert('저장 실패', e instanceof Error ? e.message : '캡션을 저장하지 못했어요.');
     }
   }, []);
 
@@ -106,9 +113,10 @@ export function useStoryData() {
       }));
       try {
         await deleteStory(storyId, storagePath);
-      } catch {
+      } catch (e) {
         const stories = await getStories(state.coupleId);
         setState((prev) => ({ ...prev, stories }));
+        Alert.alert('삭제 실패', e instanceof Error ? e.message : '스토리를 삭제하지 못했어요.');
       }
     },
     [state.coupleId]

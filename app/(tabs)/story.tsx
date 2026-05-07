@@ -1,17 +1,15 @@
-import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
+import Svg, { Path } from 'react-native-svg';
 
 import { FREE_DAILY_LIMIT, useStoryData } from '@/hooks/useStoryData';
-import { Story } from '@/lib/supabase/stories';
+import { LOCK_AFTER_DAYS, Story } from '@/lib/supabase/stories';
 import { styles } from '@/components/features/story/story.styles';
 import StoryUploadModal from '@/components/features/story/StoryUploadModal';
 import StoryViewer from '@/components/features/story/StoryViewer';
 import { dateToDateStr } from '@/utils/date';
-
-const LOCK_AFTER_DAYS = 7;
 
 function isDateLocked(dateKey: string, premium: boolean): boolean {
   if (premium) return false;
@@ -210,9 +208,9 @@ export default function StoryScreen() {
       <View className="flex-row items-center justify-between px-5 py-4">
         <Text className="text-base font-semibold text-moa-text">스토리</Text>
         <TouchableOpacity
-          onPress={isConnected ? pickImage : undefined}
-          className="w-8 h-8 rounded-full items-center justify-center"
-          style={{ backgroundColor: isConnected && !uploadLimitReached ? '#222222' : '#CCCCCC' }}
+          disabled={!isConnected}
+          onPress={pickImage}
+          className={`w-8 h-8 rounded-full items-center justify-center ${isConnected && !uploadLimitReached ? 'bg-moa-text' : 'bg-moa-placeholder'}`}
         >
           <Svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="white" strokeWidth={2.5}>
             <Path d="M12 5v14M5 12h14" strokeLinecap="round" />
@@ -223,19 +221,19 @@ export default function StoryScreen() {
       {/* 본문 */}
       {loading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#CCCCCC" />
+          <ActivityIndicator color="#AAAAAA" />
         </View>
       ) : !isConnected ? (
-        <View className="flex-1 items-center justify-center px-8" style={{ gap: 12 }}>
-          <Text style={storyBannerStyles.emptyTitle}>연결 후 스토리를 기록해보세요</Text>
-          <Text style={storyBannerStyles.emptyDesc}>
+        <View className="flex-1 items-center justify-center px-8 gap-3">
+          <Text className="text-base font-semibold text-moa-text text-center">연결 후 스토리를 기록해보세요</Text>
+          <Text className="text-sm text-moa-sub text-center leading-5">
             연결하면 서로의 일상을 사진으로 공유할 수 있어요
           </Text>
           <TouchableOpacity
             onPress={() => router.push('/settings/connect' as never)}
-            style={storyBannerStyles.connectButton}
+            className="bg-moa-text rounded-[20px] px-6 py-2 mt-1"
           >
-            <Text style={storyBannerStyles.connectButtonText}>연결하기</Text>
+            <Text className="text-sm text-white font-semibold">연결하기</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -296,29 +294,3 @@ const lockedCellStyle = StyleSheet.create({
   },
 });
 
-const storyBannerStyles = StyleSheet.create({
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#222222',
-    textAlign: 'center',
-  },
-  emptyDesc: {
-    fontSize: 13,
-    color: '#888888',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  connectButton: {
-    backgroundColor: '#222222',
-    borderRadius: 20,
-    paddingHorizontal: 24,
-    paddingVertical: 9,
-    marginTop: 4,
-  },
-  connectButtonText: {
-    fontSize: 13,
-    color: 'white',
-    fontWeight: '600',
-  },
-});

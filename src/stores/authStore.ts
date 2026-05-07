@@ -14,6 +14,7 @@ type AuthState = {
 };
 
 let authSubscription: Subscription | null = null;
+let initPromise: Promise<void> | null = null;
 
 async function checkProfileComplete(userId: string): Promise<boolean> {
   try {
@@ -23,7 +24,8 @@ async function checkProfileComplete(userId: string): Promise<boolean> {
       .eq('user_id', userId)
       .maybeSingle();
     return !!data?.name;
-  } catch {
+  } catch (e) {
+    console.warn('[authStore] checkProfileComplete failed', e);
     return false;
   }
 }
@@ -36,32 +38,45 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   initialize: async () => {
     if (get().initialized) return;
+    if (initPromise) return initPromise;
 
-    const { data } = await supabase.auth.getSession();
-    const user = data.session?.user ?? null;
+    initPromise = (async () => {
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user ?? null;
 
-    let profileComplete: boolean | null = null;
-    if (user) {
-      profileComplete = await checkProfileComplete(user.id);
-    }
-
-    set({ session: data.session, user, initialized: true, profileComplete });
-
-    authSubscription?.unsubscribe();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION') return;
-
-      const newUser = session?.user ?? null;
-      set({ session, user: newUser, profileComplete: null });
-
-      if (newUser) {
-        setTimeout(async () => {
-          const pc = await checkProfileComplete(newUser.id);
-          set({ profileComplete: pc });
-        }, 0);
+      let profileComplete: boolean | null = null;
+      if (user) {
+        profileComplete = await checkProfileComplete(user.id);
       }
-    });
-    authSubscription = subscription;
+
+      set({ session: data.session, user, initialized: true, profileComplete });
+
+      authSubscription?.unsubscribe();
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'INITIAL_SESSION') return;
+
+        // 토큰 갱신/유저 정보 변경 시에는 세션/유저만 업데이트 (profileComplete 유지)
+        if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+          set({ session, user: session?.user ?? null });
+          return;
+        }
+
+        const newUser = session?.user ?? null;
+        set({ session, user: newUser, profileComplete: null });
+
+        if (newUser) {
+          const capturedUserId = newUser.id;
+          checkProfileComplete(newUser.id).then((pc) => {
+            if (get().user?.id === capturedUserId) {
+              set({ profileComplete: pc });
+            }
+          });
+        }
+      });
+      authSubscription = subscription;
+    })();
+
+    return initPromise;
   },
 
   setProfileComplete: (value: boolean) => set({ profileComplete: value }),

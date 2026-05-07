@@ -64,7 +64,7 @@ export async function getLatestPhotoUrl(coupleId: string): Promise<string | null
     .eq('couple_id', coupleId)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (!data) return null;
 

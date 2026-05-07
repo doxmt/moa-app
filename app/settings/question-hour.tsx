@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -20,9 +20,10 @@ export default function QuestionHourScreen() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user || cancelled) return;
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -30,6 +31,7 @@ export default function QuestionHourScreen() {
         .eq('user_id', user.id)
         .single();
 
+      if (cancelled) return;
       if (!profile?.couple_id) return;
       setCoupleId(profile.couple_id);
 
@@ -39,23 +41,29 @@ export default function QuestionHourScreen() {
         .eq('id', profile.couple_id)
         .single();
 
+      if (cancelled) return;
       const total = couple?.question_refresh_minutes ?? 0;
       setHour(Math.floor(total / 60));
       setMinute(total % 60);
     }
     load();
+    return () => { cancelled = true; };
   }, []);
 
   const handleSave = async () => {
     if (!coupleId) return;
     setSaving(true);
 
-    await supabase
+    const { error } = await supabase
       .from('couples')
       .update({ question_refresh_minutes: hour * 60 + minute })
       .eq('id', coupleId);
 
     setSaving(false);
+    if (error) {
+      Alert.alert('오류', '저장에 실패했어요. 다시 시도해주세요.');
+      return;
+    }
     router.back();
   };
 

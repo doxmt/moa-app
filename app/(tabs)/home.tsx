@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Linking, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -8,17 +8,22 @@ import { useHomeData } from '@/hooks/useHomeData';
 import LoadingView from '@/components/ui/LoadingView';
 import PolaroidCard from '@/components/features/home/PolaroidCard';
 import BalanceGameCard from '@/components/features/home/BalanceGameCard';
-import { Text, TouchableOpacity, View } from 'react-native';
 
 export default function HomeScreen() {
-  const { data, loading, uploading, previewGame, submitAnswer, uploadPhoto } = useHomeData();
+  const { data, loading, uploading, isSubmitting, previewGame, submitAnswer, uploadPhoto } = useHomeData();
   const router = useRouter();
 
   const handlePhotoPress = useCallback(async () => {
     if (uploading) return;
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') return;
+    if (status !== 'granted') {
+      Alert.alert('권한 필요', '사진을 업로드하려면 갤러리 접근 권한이 필요해요.', [
+        { text: '취소', style: 'cancel' },
+        { text: '설정 열기', onPress: () => Linking.openSettings() },
+      ]);
+      return;
+    }
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -29,7 +34,7 @@ export default function HomeScreen() {
       try {
         await uploadPhoto(result.assets[0].uri);
       } catch (e) {
-        Alert.alert('업로드 오류', String(e));
+        Alert.alert('업로드 오류', e instanceof Error ? e.message : '사진 업로드에 실패했습니다.');
       }
     }
   }, [uploading, uploadPhoto]);
@@ -93,7 +98,7 @@ export default function HomeScreen() {
             partnerNickname={data?.partnerNickname}
             onSubmitAnswer={submitAnswer}
             onNavigateToQuestion={() => router.push('/(tabs)/question')}
-            readOnly={!data}
+            readOnly={!data || isSubmitting}
           />
         </View>
       </View>

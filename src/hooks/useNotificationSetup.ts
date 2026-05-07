@@ -1,8 +1,9 @@
-import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 
 import { markOneAsRead, savePushToken } from '@/lib/supabase/notifications';
 import { useAuthStore } from '@/stores/authStore';
@@ -237,14 +238,37 @@ export function useNotificationSetup() {
   const router = useRouter();
   const routerRef = useRef(router);
   routerRef.current = router;
+  const handledIds = useRef(new Set<string>());
 
   useEffect(() => {
     if (!session) return;
-    registerPushToken().catch((e) => console.error('[push] register failed', e));
-    scheduleLocalNotifications().catch((e) => console.error('[push] schedule failed', e));
-  }, [session?.user?.id]);
+    let cancelled = false;
+    (async () => {
+      try {
+        await registerPushToken();
+        if (cancelled) return;
+        await scheduleLocalNotifications();
+      } catch (e) {
+        if (!cancelled) console.error('[push] setup failed', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    function handleResponse(response: Notifications.NotificationResponse) {
+      const id = response.notification.request.identifier;
+      if (handledIds.current.has(id)) return;
+      handledIds.current.add(id);
+
+      const data = response.notification.request.content.data as { type?: string; notificationId?: string };
+      if (data?.notificationId) {
+        markOneAsRead(data.notificationId).catch(() => {});
+      }
+      const route = getRouteForNotificationType(data?.type ?? '');
+      routerRef.current.push(route as Href);
+    }
+
     // 콜드 스타트: 앱이 종료된 상태에서 푸시 탭으로 실행된 경우 처리
     Notifications.getLastNotificationResponseAsync().then((response) => {
       if (response) handleResponse(response);
@@ -253,13 +277,4 @@ export function useNotificationSetup() {
     const sub = Notifications.addNotificationResponseReceivedListener(handleResponse);
     return () => sub.remove();
   }, []);
-
-  function handleResponse(response: Notifications.NotificationResponse) {
-    const data = response.notification.request.content.data as { type?: string; notificationId?: string };
-    if (data?.notificationId) {
-      markOneAsRead(data.notificationId).catch(() => {});
-    }
-    const route = getRouteForNotificationType(data?.type ?? '');
-    routerRef.current.push(route as any);
-  }
 }
