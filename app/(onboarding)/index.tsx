@@ -91,10 +91,17 @@ export default function OnboardingScreen() {
       return;
     }
 
-    await supabase
+    const { error: updateErr } = await supabase
       .from('profiles')
       .update({ couple_id: couple.id })
       .eq('user_id', user.id);
+
+    if (updateErr) {
+      await supabase.from('couples').delete().eq('id', couple.id);
+      Alert.alert('오류', '코드 생성에 실패했어요. 다시 시도해주세요.');
+      setLoading(false);
+      return;
+    }
 
     setMyCode(couple.invite_code);
     setCoupleMode('create');
@@ -163,9 +170,13 @@ export default function OnboardingScreen() {
 
   const handleShare = async () => {
     if (!myCode) return;
-    await Share.share({
-      message: `모아(MOA)에서 함께 기록을 시작해요 💌\n초대 코드: ${myCode.toUpperCase()}`,
-    });
+    try {
+      await Share.share({
+        message: `모아(MOA)에서 함께 기록을 시작해요 💌\n초대 코드: ${myCode.toUpperCase()}`,
+      });
+    } catch {
+      // user dismissed share sheet
+    }
   };
 
   return (
