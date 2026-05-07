@@ -89,8 +89,8 @@ export default function RecommendScreen() {
         >
           <Text className="text-5xl">🎰</Text>
           <View className="items-center gap-1">
-            <Text className="text-sm font-semibold text-moa-text">나만의 룰렛</Text>
-            <Text className="text-xs text-moa-muted">후보를 넣고 뽑아보세요</Text>
+            <Text className="text-sm font-semibold text-moa-text">원판 돌리기</Text>
+            <Text className="text-xs text-moa-muted">원판을 돌려 정해보세요</Text>
           </View>
         </TouchableOpacity>
 
@@ -104,7 +104,7 @@ export default function RecommendScreen() {
             <Text className="text-4xl">✉️</Text>
             <View className="items-center gap-0.5">
               <Text className="text-sm font-semibold text-moa-text">제비뽑기</Text>
-              <Text className="text-xs text-moa-muted">카드를 뒤집어 뽑아보세요</Text>
+              <Text className="text-xs text-moa-muted">제비를 뽑아 정해보세요</Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity
@@ -116,7 +116,7 @@ export default function RecommendScreen() {
             <Text className="text-4xl">🪜</Text>
             <View className="items-center gap-0.5">
               <Text className="text-sm font-semibold text-moa-text">사다리타기</Text>
-              <Text className="text-xs text-moa-muted">공평하게 정해볼까요</Text>
+              <Text className="text-xs text-moa-muted">사다리를 통해 정해보세요</Text>
             </View>
           </TouchableOpacity>
         </View>
