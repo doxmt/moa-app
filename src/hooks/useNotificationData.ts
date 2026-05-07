@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AppNotification,
   deleteAllNotifications,
+  deleteOneNotification,
   fetchNotifications,
   markAllAsRead,
   markOneAsRead,
@@ -31,6 +32,23 @@ export function useNotificationData() {
   const deleteAllMutation = useMutation({
     mutationFn: deleteAllNotifications,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+    onError: (error) => console.error('[deleteAll error]', error),
+  });
+
+  const deleteOneMutation = useMutation({
+    mutationFn: deleteOneNotification,
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['notifications'] });
+      const prev = queryClient.getQueryData<AppNotification[]>(['notifications']);
+      queryClient.setQueryData<AppNotification[]>(['notifications'], (old = []) =>
+        old.filter((n) => n.id !== id),
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['notifications'], ctx.prev);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
   });
 
   const markReadMutation = useMutation({
@@ -55,6 +73,7 @@ export function useNotificationData() {
     isLoading,
     markAllAsRead: () => markAllReadMutation.mutateAsync(),
     deleteAll: () => deleteAllMutation.mutateAsync(),
+    deleteOne: (id: string) => deleteOneMutation.mutateAsync(id),
     markAsRead: (id: string) => markReadMutation.mutateAsync(id),
   };
 }
