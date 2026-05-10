@@ -9,9 +9,12 @@ import {
   useWindowDimensions,
   Modal,
   StyleSheet,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import Svg, { Path, Text as SvgText, G, Rect, Circle } from 'react-native-svg';
 import { generateLadder, LADDER_ROWS } from './constants';
+import { fetchCoupleBasic } from '@/lib/supabase/profile';
 
 const ANIM_INTERVAL = 150;
 const ACCENT = '#E8736A';
@@ -28,9 +31,19 @@ export function LadderPage({ onBack }: { onBack: () => void }) {
   const [animPath, setAnimPath] = useState<{ x: number; y: number }[]>([]);
   const [animDone, setAnimDone] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [myName, setMyName] = useState('');
+  const [partnerName, setPartnerName] = useState('');
 
   const { width } = useWindowDimensions();
   const MAX = 6;
+
+  useEffect(() => {
+    fetchCoupleBasic().then((couple) => {
+      if (!couple) return;
+      setMyName(couple.myNickname);
+      setPartnerName(couple.partnerNickname ?? '');
+    });
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -149,6 +162,7 @@ export function LadderPage({ onBack }: { onBack: () => void }) {
       : '';
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
     <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View className="flex-row items-center gap-3 px-5 py-4">
         <TouchableOpacity
@@ -159,14 +173,48 @@ export function LadderPage({ onBack }: { onBack: () => void }) {
           <Text className="text-xl text-moa-text">‹</Text>
         </TouchableOpacity>
         <Text className="flex-1 text-base font-semibold text-moa-text">사다리타기</Text>
-        {phase === 'ladder' && (
+        {phase === 'players' && myName ? (
           <TouchableOpacity
-            onPress={resetGame}
-            className="px-3 py-1.5 rounded-full bg-moa-text"
+            onPress={() => { if (players.length < MAX) setPlayers(prev => [...prev, myName]); }}
+            disabled={players.length >= MAX}
+            className="px-3 py-1.5 rounded-full bg-[#E8736A] disabled:opacity-40"
           >
-            <Text className="text-xs font-semibold text-white">초기화</Text>
+            <Text className="text-xs font-semibold text-white">{myName} 추가</Text>
           </TouchableOpacity>
-        )}
+        ) : null}
+        {phase === 'players' && partnerName ? (
+          <TouchableOpacity
+            onPress={() => { if (players.length < MAX) setPlayers(prev => [...prev, partnerName]); }}
+            disabled={players.length >= MAX}
+            className="px-3 py-1.5 rounded-full bg-[#E8736A] disabled:opacity-40"
+          >
+            <Text className="text-xs font-semibold text-white">{partnerName} 추가</Text>
+          </TouchableOpacity>
+        ) : null}
+        {phase === 'results' && myName ? (
+          <TouchableOpacity
+            onPress={() => { if (results.length < players.length) setResults(prev => [...prev, myName]); }}
+            disabled={results.length >= players.length}
+            className="px-3 py-1.5 rounded-full bg-[#E8736A] disabled:opacity-40"
+          >
+            <Text className="text-xs font-semibold text-white">{myName} 추가</Text>
+          </TouchableOpacity>
+        ) : null}
+        {phase === 'results' && partnerName ? (
+          <TouchableOpacity
+            onPress={() => { if (results.length < players.length) setResults(prev => [...prev, partnerName]); }}
+            disabled={results.length >= players.length}
+            className="px-3 py-1.5 rounded-full bg-[#E8736A] disabled:opacity-40"
+          >
+            <Text className="text-xs font-semibold text-white">{partnerName} 추가</Text>
+          </TouchableOpacity>
+        ) : null}
+        <TouchableOpacity
+          onPress={resetGame}
+          className="px-3 py-1.5 rounded-full bg-moa-text"
+        >
+          <Text className="text-xs font-semibold text-white">초기화</Text>
+        </TouchableOpacity>
       </View>
 
       {phase === 'players' && (
@@ -371,6 +419,7 @@ export function LadderPage({ onBack }: { onBack: () => void }) {
         </View>
       </Modal>
     </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 
