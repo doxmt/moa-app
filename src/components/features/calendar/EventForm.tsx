@@ -61,11 +61,12 @@ interface Props {
   visible: boolean;
   initialDate: string;
   submitting: boolean;
+  initialData?: EventData;
   onClose: () => void;
   onSubmit: (data: EventData) => Promise<void>;
 }
 
-export default function EventForm({ visible, initialDate, submitting, onClose, onSubmit }: Props) {
+export default function EventForm({ visible, initialDate, submitting, initialData, onClose, onSubmit }: Props) {
   const insets = useSafeAreaInsets();
   const today = new Date();
 
@@ -81,17 +82,33 @@ export default function EventForm({ visible, initialDate, submitting, onClose, o
   const [description, setDescription] = useState('');
 
   const reset = () => {
-    const dv = strToDateVal(initialDate);
-    setTitle('');
-    setColor(COLORS[0]);
-    setIsAllDay(false);
-    setStartDateTime({ date: initialDate, hour: 9, minute: 0 });
-    setEndDateTime({ date: initialDate, hour: 10, minute: 0 });
-    setStartDateOnly(dv);
-    setEndDateOnly(dv);
+    if (initialData) {
+      setTitle(initialData.title);
+      setColor(initialData.color);
+      setIsAllDay(initialData.isAllDay);
+      if (initialData.isAllDay) {
+        setStartDateOnly(strToDateVal(initialData.startDate));
+        setEndDateOnly(strToDateVal(initialData.endDate));
+      } else {
+        const [sh, sm] = (initialData.startTime ?? '09:00').split(':').map(Number);
+        const [eh, em] = (initialData.endTime ?? '10:00').split(':').map(Number);
+        setStartDateTime({ date: initialData.startDate, hour: sh, minute: sm });
+        setEndDateTime({ date: initialData.endDate, hour: eh, minute: em });
+      }
+      setDescription(initialData.description ?? '');
+    } else {
+      const dv = strToDateVal(initialDate);
+      setTitle('');
+      setColor(COLORS[0]);
+      setIsAllDay(false);
+      setStartDateTime({ date: initialDate, hour: 9, minute: 0 });
+      setEndDateTime({ date: initialDate, hour: 10, minute: 0 });
+      setStartDateOnly(dv);
+      setEndDateOnly(dv);
+      setDescription('');
+    }
     setShowStartPicker(false);
     setShowEndPicker(false);
-    setDescription('');
   };
 
   useEffect(() => {
@@ -131,14 +148,14 @@ export default function EventForm({ visible, initialDate, submitting, onClose, o
           <TouchableOpacity onPress={handleClose} style={styles.navBtn}>
             <Text style={styles.navCancel}>취소</Text>
           </TouchableOpacity>
-          <Text style={styles.navTitle}>일정 추가</Text>
+          <Text style={styles.navTitle}>{initialData ? '일정 수정' : '일정 추가'}</Text>
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={submitting || !title.trim()}
             style={styles.navBtn}
           >
             <Text style={[styles.navSave, (submitting || !title.trim()) && styles.navSaveDisabled]}>
-              {submitting ? '저장 중' : '저장'}
+              {submitting ? '저장 중' : initialData ? '수정' : '저장'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -239,14 +256,30 @@ export default function EventForm({ visible, initialDate, submitting, onClose, o
                 {isAllDay ? (
                   <ScrollDatePicker
                     value={endDateOnly}
-                    onChange={setEndDateOnly}
+                    onChange={(v) => {
+                      if (dateValToStr(v) < dateValToStr(startDateOnly)) setEndDateOnly(startDateOnly);
+                      else setEndDateOnly(v);
+                    }}
                     minYear={2020}
                     maxYear={today.getFullYear() + 5}
                   />
                 ) : (
                   <DateTimeWheelPicker
                     value={endDateTime}
-                    onChange={setEndDateTime}
+                    onChange={(v) => {
+                      const endMs = new Date(`${v.date}T${String(v.hour).padStart(2, '0')}:${String(v.minute).padStart(2, '0')}`).getTime();
+                      const startMs = new Date(`${startDateTime.date}T${String(startDateTime.hour).padStart(2, '0')}:${String(startDateTime.minute).padStart(2, '0')}`).getTime();
+                      if (endMs <= startMs) {
+                        const adjusted = new Date(startMs + 60 * 60 * 1000);
+                        setEndDateTime({
+                          date: adjusted.toISOString().slice(0, 10),
+                          hour: adjusted.getHours(),
+                          minute: Math.round(adjusted.getMinutes() / 5) * 5 % 60,
+                        });
+                      } else {
+                        setEndDateTime(v);
+                      }
+                    }}
                     baseDate={initialDate}
                   />
                 )}

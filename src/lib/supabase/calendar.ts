@@ -71,3 +71,36 @@ export async function deleteEvent(eventId: string) {
   const { error } = await supabase.from('calendar_events').delete().eq('id', eventId)
   if (error) throw error
 }
+
+export type UpdateEventInput = {
+  eventId: string
+  title: string
+  color: string
+  isAllDay: boolean
+  startDate: string
+  endDate: string
+  startTime?: string
+  endTime?: string
+  description?: string
+}
+
+export async function updateEvent(input: UpdateEventInput) {
+  const { data, error } = await supabase
+    .from('calendar_events')
+    .update({
+      title: input.title,
+      color: input.color,
+      is_all_day: input.isAllDay,
+      start_date: input.startDate,
+      end_date: input.endDate,
+      start_time: input.startTime ?? null,
+      end_time: input.endTime ?? null,
+      description: input.description ?? null,
+    })
+    .eq('id', input.eventId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as CalendarEvent
+}
