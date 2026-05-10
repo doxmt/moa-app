@@ -70,7 +70,9 @@ export function DrawPage({ onBack }: { onBack: () => void }) {
   const MAX = 9;
   const GRID_GAP = 10;
   const slipW = Math.floor((width - 40 - GRID_GAP * 2) / 3);
+  const inputSlipW = Math.floor((width - 72 - GRID_GAP * 2) / 3);
   const slipH = Math.floor(slipW * 1.38);
+  const inputSlipH = Math.floor(inputSlipW * 1.38);
 
   const addSlip = () => {
     const trimmed = input.trim();
@@ -168,7 +170,7 @@ export function DrawPage({ onBack }: { onBack: () => void }) {
                 <View className="flex-row flex-wrap justify-center" style={{ gap: GRID_GAP }}>
                   {slips.map((slip, i) => (
                     <View key={i} style={{ transform: [{ rotate: `${SLIP_ROTATIONS[i % SLIP_ROTATIONS.length]}deg` }] }}>
-                      <SlipNote color={slip.color} showText text={slip.text} width={slipW} height={slipH} />
+                      <SlipNote color={slip.color} showText text={slip.text} width={inputSlipW} height={inputSlipH} />
                       <TouchableOpacity
                         onPress={() => removeSlip(i)}
                         style={{ position: 'absolute', top: -7, right: -7, width: 20, height: 20, borderRadius: 10, backgroundColor: '#AAAAAA', alignItems: 'center', justifyContent: 'center' }}

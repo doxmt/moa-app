@@ -85,6 +85,7 @@ export function RoulettePage({ onBack }: { onBack: () => void }) {
 
   const { width } = useWindowDimensions();
   const wheelSize = Math.min(width - 80, 280);
+  const chipWidth = Math.floor((width - 56) / 3);
 
   useEffect(() => {
     return () => { rotationAnim.stopAnimation(); };
@@ -195,21 +196,23 @@ export function RoulettePage({ onBack }: { onBack: () => void }) {
         </View>
 
         {candidates.length > 0 && (
-          <View className="flex-row flex-wrap gap-2">
-            {candidates.map((item, i) => (
-              <View
-                key={i}
-                className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-moa-border"
-                style={{ maxWidth: 140 }}
-              >
-                <Text className="flex-1 text-sm text-moa-text" numberOfLines={1} ellipsizeMode="tail">{item}</Text>
-                <TouchableOpacity
-                  onPress={() => removeCandidate(i)}
-                  disabled={spinning}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                >
-                  <Text className="text-moa-muted text-xs">✕</Text>
-                </TouchableOpacity>
+          <View className="gap-2">
+            {Array.from({ length: Math.ceil(candidates.length / 3) }, (_, row) => (
+              <View key={row} className="flex-row gap-2">
+                {candidates.slice(row * 3, row * 3 + 3).map((item, col) => {
+                  const i = row * 3 + col;
+                  return (
+                    <View key={i} className="flex-1 flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-moa-border">
+                      <Text className="shrink text-sm text-moa-text" numberOfLines={1} ellipsizeMode="tail">{item}</Text>
+                      <TouchableOpacity onPress={() => removeCandidate(i)} disabled={spinning} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                        <Text className="text-moa-muted text-xs">✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+                {Array(3 - Math.min(3, candidates.length - row * 3)).fill(null).map((_, k) => (
+                  <View key={`sp-${k}`} className="flex-1" />
+                ))}
               </View>
             ))}
           </View>
