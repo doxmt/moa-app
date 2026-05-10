@@ -2,7 +2,9 @@ import React from 'react';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { Alert, Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+import { useToast } from '@/hooks/useToast';
 import Svg, { Path } from 'react-native-svg';
 
 import { supabase } from '@/lib/supabase/client';
@@ -89,6 +91,7 @@ const visibleProviders = PROVIDERS.filter(
 );
 
 export default function LoginScreen() {
+  const { showToast } = useToast();
   const [loadingProvider, setLoadingProvider] = useState<Provider | null>(null);
 
   const handleSocialLogin = async (provider: Provider) => {
@@ -143,7 +146,7 @@ export default function LoginScreen() {
 
       success = true; // 성공 시 로딩 유지 (화면 전환까지)
     } catch (e) {
-      Alert.alert('로그인 실패', e instanceof Error ? e.message : '알 수 없는 오류가 발생했어요.');
+      showToast(e instanceof Error ? e.message : '알 수 없는 오류가 발생했어요.');
     } finally {
       if (!success) setLoadingProvider(null);
     }

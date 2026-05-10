@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Dimensions,
   Image,
@@ -22,6 +21,7 @@ import Svg, { Path, Polyline } from 'react-native-svg';
 
 import { Story } from '@/lib/supabase/stories';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/hooks/useToast';
 import { formatDateDot, formatTime } from '@/utils/date';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -52,13 +52,14 @@ export default function StoryViewer({
   const [editingCaption, setEditingCaption] = useState(false);
   const [editCaptionValue, setEditCaptionValue] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showEditConfirm, setShowEditConfirm] = useState(false);
+  const [showPermissionDialog, setShowPermissionDialog] = useState(false);
+  const { showToast } = useToast();
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
   const selected = viewerGroup[viewerIndex] ?? null;
   const isMyStory = selected ? selected.created_by === userId : false;
 
-  const showToast = () => {
+  const showSavedToast = () => {
     Animated.sequence([
       Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
       Animated.delay(1500),
@@ -126,10 +127,7 @@ export default function StoryViewer({
     if (!selected?.signed_url) return;
     const { status } = await MediaLibrary.requestPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('권한 필요', '갤러리 저장을 위해 사진 접근 권한이 필요해요.', [
-        { text: '취소', style: 'cancel' },
-        { text: '설정 열기', onPress: () => Linking.openSettings() },
-      ]);
+      setShowPermissionDialog(true);
       return;
     }
     const cacheDir = FileSystem.cacheDirectory;
@@ -139,9 +137,9 @@ export default function StoryViewer({
     try {
       await FileSystem.downloadAsync(selected.signed_url, localUri);
       await MediaLibrary.saveToLibraryAsync(localUri);
-      showToast();
+      showSavedToast();
     } catch {
-      Alert.alert('저장 실패', '사진을 갤러리에 저장하지 못했어요.');
+      showToast('사진을 갤러리에 저장하지 못했어요.');
     } finally {
       await FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => {});
     }
@@ -274,7 +272,7 @@ export default function StoryViewer({
                   <Text className="text-white/70 text-sm">취소</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => setShowEditConfirm(true)}
+                  onPress={handleCaptionSave}
                   className="px-3 py-2 rounded-xl bg-white"
                 >
                   <Text className="text-moa-text text-sm font-medium">저장</Text>
@@ -289,13 +287,14 @@ export default function StoryViewer({
             )}
           </View>
 
-          {/* 캡션 수정 확인 */}
+          {/* 갤러리 권한 */}
           <ConfirmDialog
-            visible={showEditConfirm}
-            title="캡션을 수정하시겠습니까?"
-            confirmText="수정"
-            onConfirm={() => { setShowEditConfirm(false); handleCaptionSave(); }}
-            onCancel={() => setShowEditConfirm(false)}
+            visible={showPermissionDialog}
+            title="갤러리 접근 권한 필요"
+            subtitle="사진 저장을 위해 갤러리 접근 권한이 필요해요."
+            confirmText="설정 열기"
+            onConfirm={() => { setShowPermissionDialog(false); Linking.openSettings(); }}
+            onCancel={() => setShowPermissionDialog(false)}
           />
 
           {/* 삭제 확인 */}

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
+import { useToast } from '@/hooks/useToast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -28,6 +30,7 @@ function formatDate(d: DateValue) {
 export default function CoupleInfoScreen() {
   const router = useRouter();
   const { top } = useSafeAreaInsets();
+  const { showToast } = useToast();
   const [myName, setMyName] = useState('');
   const [myNickname, setMyNickname] = useState('');
   const [partnerName, setPartnerName] = useState<string | null>(null);
@@ -94,7 +97,7 @@ export default function CoupleInfoScreen() {
 
     if (profileErr) {
       setSaving(false);
-      Alert.alert('오류', '저장에 실패했어요. 다시 시도해주세요.');
+      showToast('저장에 실패했어요. 다시 시도해주세요.');
       return;
     }
 
@@ -105,7 +108,7 @@ export default function CoupleInfoScreen() {
         .eq('id', coupleId);
       if (coupleErr) {
         setSaving(false);
-        Alert.alert('오류', '기념일 저장에 실패했어요. 다시 시도해주세요.');
+        showToast('기념일 저장에 실패했어요. 다시 시도해주세요.');
         return;
       }
     }

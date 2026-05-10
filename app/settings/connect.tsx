@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
+import { useToast } from '@/hooks/useToast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Check, Copy, Share2 } from 'lucide-react-native';
@@ -10,6 +12,7 @@ import { supabase } from '@/lib/supabase/client';
 export default function ConnectScreen() {
   const router = useRouter();
   const { top } = useSafeAreaInsets();
+  const { showToast } = useToast();
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -96,7 +99,7 @@ export default function ConnectScreen() {
       .single();
 
     if (createErr || !couple) {
-      Alert.alert('오류', '코드 생성에 실패했어요. 다시 시도해주세요.');
+      showToast('코드 생성에 실패했어요. 다시 시도해주세요.');
       setCreating(false);
       return;
     }

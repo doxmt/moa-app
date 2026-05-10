@@ -207,7 +207,7 @@ export function useCalendarData() {
     async (eventId: string, input: Omit<CreateEventInput, 'coupleId' | 'userId'>) => {
       setState((prev) => ({ ...prev, submitting: true }))
       try {
-        const updated = await updateEvent({
+        await updateEvent({
           eventId,
           title: input.title,
           color: input.color,
@@ -220,7 +220,21 @@ export function useCalendarData() {
         })
         setState((prev) => ({
           ...prev,
-          events: prev.events.map((e) => (e.id === eventId ? updated : e)),
+          events: prev.events.map((e) =>
+            e.id === eventId
+              ? {
+                  ...e,
+                  title: input.title,
+                  color: input.color,
+                  is_all_day: input.isAllDay,
+                  start_date: input.startDate,
+                  end_date: input.endDate,
+                  start_time: input.startTime ?? null,
+                  end_time: input.endTime ?? null,
+                  description: input.description ?? null,
+                }
+              : e
+          ),
           submitting: false,
         }))
       } catch (e) {

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
+import { useToast } from '@/hooks/useToast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -22,6 +24,7 @@ function isEmoji(text: string): boolean {
 export default function CalendarAvatarScreen() {
   const router = useRouter();
   const { top } = useSafeAreaInsets();
+  const { showToast } = useToast();
   const [myAvatar, setMyAvatar] = useState('🐻');
   const [savedAvatar, setSavedAvatar] = useState('🐻');
   const [partnerAvatar, setPartnerAvatar] = useState<string | null>(null);
@@ -73,7 +76,7 @@ export default function CalendarAvatarScreen() {
 
     setSaving(false);
     if (error) {
-      Alert.alert('오류', '저장에 실패했어요. 다시 시도해주세요.');
+      showToast('저장에 실패했어요. 다시 시도해주세요.');
       return;
     }
     router.back();

@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { Alert, Animated, FlatList, Modal, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, FlatList, Modal, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
@@ -8,6 +8,7 @@ import { X, MessageCircle, Check, MessageSquare, Camera, Heart, Gift, Clock, Bel
 import { AppNotification, NotificationType } from '@/lib/supabase/notifications';
 import { useNotificationData } from '@/hooks/useNotificationData';
 import { getRouteForNotificationType } from '@/hooks/useNotificationSetup';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 type Props = {
   visible: boolean;
@@ -178,6 +179,7 @@ export default function NotificationModal({ visible, onClose }: Props) {
   const { top } = useSafeAreaInsets();
   const router = useRouter();
   const { notifications, isLoading, markAllAsRead, deleteAll, deleteOne, markAsRead } = useNotificationData();
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
 
   const handleItemPress = (item: AppNotification) => {
     if (!item.read) markAsRead(item.id).catch((e) => console.error('[markAsRead]', e));
@@ -187,14 +189,7 @@ export default function NotificationModal({ visible, onClose }: Props) {
   };
 
   const handleDeleteAll = () => {
-    Alert.alert(
-      '전체 삭제',
-      '모든 알림을 삭제하시겠어요?\n삭제된 알림은 복구할 수 없어요.',
-      [
-        { text: '취소', style: 'cancel' },
-        { text: '삭제', style: 'destructive', onPress: () => deleteAll().catch((e) => console.error('[deleteAll]', e)) },
-      ]
-    );
+    setShowDeleteAllConfirm(true);
   };
 
   return (
@@ -257,6 +252,15 @@ export default function NotificationModal({ visible, onClose }: Props) {
           />
         )}
 
+      <ConfirmDialog
+        visible={showDeleteAllConfirm}
+        title="모든 알림을 삭제할까요?"
+        subtitle="삭제된 알림은 복구할 수 없어요."
+        confirmText="삭제"
+        destructive
+        onConfirm={() => { setShowDeleteAllConfirm(false); deleteAll().catch((e) => console.error('[deleteAll]', e)); }}
+        onCancel={() => setShowDeleteAllConfirm(false)}
+      />
       </View>
     </Modal>
   );

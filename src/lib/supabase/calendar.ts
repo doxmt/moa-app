@@ -85,7 +85,7 @@ export type UpdateEventInput = {
 }
 
 export async function updateEvent(input: UpdateEventInput) {
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('calendar_events')
     .update({
       title: input.title,
@@ -98,9 +98,6 @@ export async function updateEvent(input: UpdateEventInput) {
       description: input.description ?? null,
     })
     .eq('id', input.eventId)
-    .select()
-    .single()
 
   if (error) throw error
-  return data as CalendarEvent
 }

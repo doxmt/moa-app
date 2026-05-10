@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import ScrollDatePicker from '@/components/ui/ScrollDatePicker';
+import { useToast } from '@/hooks/useToast';
 
 type Step = 'profile' | 'couple';
 type CoupleMode = 'create' | 'join' | null;
@@ -31,6 +31,7 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { top, bottom } = useSafeAreaInsets();
   const { signOut, setProfileComplete } = useAuthStore();
+  const { showToast } = useToast();
   const [step, setStep] = useState<Step>('profile');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +87,7 @@ export default function OnboardingScreen() {
       .single();
 
     if (err || !couple) {
-      Alert.alert('오류', '코드 생성에 실패했어요. 다시 시도해주세요.');
+      showToast('코드 생성에 실패했어요. 다시 시도해주세요.');
       setLoading(false);
       return;
     }
@@ -98,7 +99,7 @@ export default function OnboardingScreen() {
 
     if (updateErr) {
       await supabase.from('couples').delete().eq('id', couple.id);
-      Alert.alert('오류', '코드 생성에 실패했어요. 다시 시도해주세요.');
+      showToast('코드 생성에 실패했어요. 다시 시도해주세요.');
       setLoading(false);
       return;
     }
