@@ -4,16 +4,17 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
-  KeyboardAvoidingView,
-  Platform,
   Animated,
   Easing,
   useWindowDimensions,
   Modal,
   StyleSheet,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import Svg, { Path, G, Text as SvgText, Circle } from 'react-native-svg';
 import { WHEEL_COLORS } from './constants';
+import { fetchCoupleBasic } from '@/lib/supabase/profile';
 
 function SpinningWheel({ size, candidates }: { size: number; candidates: string[] }) {
   const cx = size / 2;
@@ -82,10 +83,20 @@ export function RoulettePage({ onBack }: { onBack: () => void }) {
 
   const rotationRef = useRef(0);
   const rotationAnim = useRef(new Animated.Value(0)).current;
+  const [myName, setMyName] = useState('');
+  const [partnerName, setPartnerName] = useState('');
 
   const { width } = useWindowDimensions();
   const wheelSize = Math.min(width - 80, 280);
   const chipWidth = Math.floor((width - 56) / 3);
+
+  useEffect(() => {
+    fetchCoupleBasic().then((couple) => {
+      if (!couple) return;
+      setMyName(couple.myNickname);
+      setPartnerName(couple.partnerNickname ?? '');
+    });
+  }, []);
 
   useEffect(() => {
     return () => { rotationAnim.stopAnimation(); };
@@ -152,10 +163,8 @@ export function RoulettePage({ onBack }: { onBack: () => void }) {
   });
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1"
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <View className="flex-1">
       <View className="flex-row items-center gap-3 px-5 py-4">
         <TouchableOpacity
           onPress={onBack}
@@ -164,7 +173,25 @@ export function RoulettePage({ onBack }: { onBack: () => void }) {
         >
           <Text className="text-xl text-moa-text">‹</Text>
         </TouchableOpacity>
-        <Text className="flex-1 text-base font-semibold text-moa-text">나만의 룰렛</Text>
+        <Text className="flex-1 text-base font-semibold text-moa-text">원판 돌리기</Text>
+        {myName ? (
+          <TouchableOpacity
+            onPress={() => { if (!spinning && candidates.length < 8) setCandidates(prev => [...prev, myName]); }}
+            disabled={spinning || candidates.length >= 8}
+            className="px-3 py-1.5 rounded-full bg-[#E8736A] disabled:opacity-40"
+          >
+            <Text className="text-xs font-semibold text-white">{myName} 추가</Text>
+          </TouchableOpacity>
+        ) : null}
+        {partnerName ? (
+          <TouchableOpacity
+            onPress={() => { if (!spinning && candidates.length < 8) setCandidates(prev => [...prev, partnerName]); }}
+            disabled={spinning || candidates.length >= 8}
+            className="px-3 py-1.5 rounded-full bg-[#E8736A] disabled:opacity-40"
+          >
+            <Text className="text-xs font-semibold text-white">{partnerName} 추가</Text>
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity
           onPress={reset}
           disabled={spinning}
@@ -196,23 +223,13 @@ export function RoulettePage({ onBack }: { onBack: () => void }) {
         </View>
 
         {candidates.length > 0 && (
-          <View className="gap-2">
-            {Array.from({ length: Math.ceil(candidates.length / 3) }, (_, row) => (
-              <View key={row} className="flex-row gap-2">
-                {candidates.slice(row * 3, row * 3 + 3).map((item, col) => {
-                  const i = row * 3 + col;
-                  return (
-                    <View key={i} className="flex-1 flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-moa-border">
-                      <Text className="shrink text-sm text-moa-text" numberOfLines={1} ellipsizeMode="tail">{item}</Text>
-                      <TouchableOpacity onPress={() => removeCandidate(i)} disabled={spinning} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                        <Text className="text-moa-muted text-xs">✕</Text>
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })}
-                {Array(3 - Math.min(3, candidates.length - row * 3)).fill(null).map((_, k) => (
-                  <View key={`sp-${k}`} className="flex-1" />
-                ))}
+          <View className="flex-row flex-wrap gap-2">
+            {candidates.map((item, i) => (
+              <View key={i} className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-moa-border" style={{ maxWidth: 140 }}>
+                <Text className="shrink text-sm text-moa-text" numberOfLines={1} ellipsizeMode="tail">{item}</Text>
+                <TouchableOpacity onPress={() => removeCandidate(i)} disabled={spinning} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                  <Text className="text-moa-muted text-xs">✕</Text>
+                </TouchableOpacity>
               </View>
             ))}
           </View>
@@ -272,7 +289,8 @@ export function RoulettePage({ onBack }: { onBack: () => void }) {
           </View>
         </View>
       </Modal>
-    </KeyboardAvoidingView>
+    </View>
+    </TouchableWithoutFeedback>
   );
 }
 

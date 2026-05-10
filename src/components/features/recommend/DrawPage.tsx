@@ -12,6 +12,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SLIP_COLORS, SlipItem } from './constants';
+import { fetchCoupleBasic } from '@/lib/supabase/profile';
 
 const SLIP_ROTATIONS = [3, -4, 2, -5, 4, -2, 5, -3, 3];
 
@@ -62,6 +63,16 @@ export function DrawPage({ onBack }: { onBack: () => void }) {
   const [revealed, setRevealed] = useState<boolean[]>([]);
   const flipAnims = useRef(Array.from({ length: 9 }, () => new Animated.Value(1))).current;
   const { width } = useWindowDimensions();
+  const [myName, setMyName] = useState('');
+  const [partnerName, setPartnerName] = useState('');
+
+  useEffect(() => {
+    fetchCoupleBasic().then((couple) => {
+      if (!couple) return;
+      setMyName(couple.myNickname);
+      setPartnerName(couple.partnerNickname ?? '');
+    });
+  }, []);
 
   useEffect(() => {
     return () => { flipAnims.forEach((anim) => anim.stopAnimation()); };
@@ -127,14 +138,30 @@ export function DrawPage({ onBack }: { onBack: () => void }) {
           <Text className="text-xl text-moa-text">‹</Text>
         </TouchableOpacity>
         <Text className="flex-1 text-base font-semibold text-moa-text">제비뽑기</Text>
-        {phase === 'draw' && (
+        {phase === 'input' && myName ? (
           <TouchableOpacity
-            onPress={() => { setPhase('input'); setSlips([]); setInput(''); }}
-            className="px-3 py-1.5 rounded-full bg-moa-text"
+            onPress={() => { if (slips.length >= MAX) return; const color = SLIP_COLORS[slips.length % SLIP_COLORS.length]; setSlips(prev => [...prev, { text: myName, color }]); }}
+            disabled={slips.length >= MAX}
+            className="px-3 py-1.5 rounded-full bg-[#E8736A] disabled:opacity-40"
           >
-            <Text className="text-xs font-semibold text-white">초기화</Text>
+            <Text className="text-xs font-semibold text-white">{myName} 추가</Text>
           </TouchableOpacity>
-        )}
+        ) : null}
+        {phase === 'input' && partnerName ? (
+          <TouchableOpacity
+            onPress={() => { if (slips.length >= MAX) return; const color = SLIP_COLORS[slips.length % SLIP_COLORS.length]; setSlips(prev => [...prev, { text: partnerName, color }]); }}
+            disabled={slips.length >= MAX}
+            className="px-3 py-1.5 rounded-full bg-[#E8736A] disabled:opacity-40"
+          >
+            <Text className="text-xs font-semibold text-white">{partnerName} 추가</Text>
+          </TouchableOpacity>
+        ) : null}
+        <TouchableOpacity
+          onPress={() => { setSlips([]); setInput(''); setPhase('input'); }}
+          className="px-3 py-1.5 rounded-full bg-moa-text"
+        >
+          <Text className="text-xs font-semibold text-white">초기화</Text>
+        </TouchableOpacity>
       </View>
 
       {phase === 'input' && (
