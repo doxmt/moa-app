@@ -195,7 +195,7 @@ export function LadderPage({ onBack }: { onBack: () => void }) {
             <View className="flex-row flex-wrap gap-2">
               {players.map((p, i) => (
                 <View key={i} className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-moa-border" style={{ maxWidth: 140 }}>
-                  <Text className="flex-1 text-sm text-moa-text" numberOfLines={1} ellipsizeMode="tail">{p}</Text>
+                  <Text className="shrink text-sm text-moa-text" numberOfLines={1} ellipsizeMode="tail">{p}</Text>
                   <TouchableOpacity onPress={() => setPlayers((prev) => prev.filter((_, j) => j !== i))} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                     <Text className="text-moa-muted text-xs">✕</Text>
                   </TouchableOpacity>
@@ -240,7 +240,7 @@ export function LadderPage({ onBack }: { onBack: () => void }) {
             <View className="flex-row flex-wrap gap-2">
               {results.map((r, i) => (
                 <View key={i} className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-moa-border" style={{ maxWidth: 140 }}>
-                  <Text className="flex-1 text-sm text-moa-text" numberOfLines={1} ellipsizeMode="tail">{r}</Text>
+                  <Text className="shrink text-sm text-moa-text" numberOfLines={1} ellipsizeMode="tail">{r}</Text>
                   <TouchableOpacity onPress={() => setResults((prev) => prev.filter((_, j) => j !== i))} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                     <Text className="text-moa-muted text-xs">✕</Text>
                   </TouchableOpacity>

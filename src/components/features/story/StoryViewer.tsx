@@ -22,7 +22,7 @@ import Svg, { Path, Polyline } from 'react-native-svg';
 
 import { Story } from '@/lib/supabase/stories';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { formatDateDot } from '@/utils/date';
+import { formatDateDot, formatTime } from '@/utils/date';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -168,7 +168,7 @@ export default function StoryViewer({
               <Text className="text-white text-sm font-medium">
                 {selected.created_by === userId ? myNickname : partnerNickname}
               </Text>
-              <Text className="text-white/60 text-sm">{formatDateDot(selected.created_at)}</Text>
+              <Text className="text-white/60 text-sm">{formatDateDot(selected.created_at)} {formatTime(selected.created_at)}</Text>
             </View>
             <View className="flex-row items-center gap-3">
               {isMyStory && (
