@@ -1,27 +1,28 @@
-import { useCallback } from 'react';
-import { Alert, Linking, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Linking, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 
 import { useHomeData } from '@/hooks/useHomeData';
+import { useToast } from '@/hooks/useToast';
 import LoadingView from '@/components/ui/LoadingView';
 import PolaroidCard from '@/components/features/home/PolaroidCard';
 import BalanceGameCard from '@/components/features/home/BalanceGameCard';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 export default function HomeScreen() {
   const { data, loading, uploading, isSubmitting, previewGame, submitAnswer, uploadPhoto } = useHomeData();
   const router = useRouter();
+  const { showToast } = useToast();
+  const [showPermissionDialog, setShowPermissionDialog] = useState(false);
 
   const handlePhotoPress = useCallback(async () => {
     if (uploading) return;
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('권한 필요', '사진을 업로드하려면 갤러리 접근 권한이 필요해요.', [
-        { text: '취소', style: 'cancel' },
-        { text: '설정 열기', onPress: () => Linking.openSettings() },
-      ]);
+      setShowPermissionDialog(true);
       return;
     }
 
@@ -34,10 +35,10 @@ export default function HomeScreen() {
       try {
         await uploadPhoto(result.assets[0].uri);
       } catch (e) {
-        Alert.alert('업로드 오류', e instanceof Error ? e.message : '사진 업로드에 실패했습니다.');
+        showToast(e instanceof Error ? e.message : '사진 업로드에 실패했습니다.');
       }
     }
-  }, [uploading, uploadPhoto]);
+  }, [uploading, uploadPhoto, showToast]);
 
   if (loading) {
     return (
@@ -102,6 +103,14 @@ export default function HomeScreen() {
           />
         </View>
       </View>
+      <ConfirmDialog
+        visible={showPermissionDialog}
+        title="갤러리 접근 권한 필요"
+        subtitle="사진을 업로드하려면 갤러리 접근 권한이 필요해요."
+        confirmText="설정 열기"
+        onConfirm={() => { setShowPermissionDialog(false); Linking.openSettings(); }}
+        onCancel={() => setShowPermissionDialog(false)}
+      />
     </SafeAreaView>
   );
 }

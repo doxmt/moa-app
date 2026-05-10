@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
+import { useToast } from '@/hooks/useToast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -28,6 +30,7 @@ function formatDate(d: DateValue) {
 export default function ProfileEditScreen() {
   const router = useRouter();
   const { top } = useSafeAreaInsets();
+  const { showToast } = useToast();
   const [name, setName] = useState('');
   const [birthday, setBirthday] = useState<DateValue>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -69,7 +72,7 @@ export default function ProfileEditScreen() {
 
     setSaving(false);
     if (error) {
-      Alert.alert('오류', '저장에 실패했어요. 다시 시도해주세요.');
+      showToast('저장에 실패했어요. 다시 시도해주세요.');
       return;
     }
     router.back();

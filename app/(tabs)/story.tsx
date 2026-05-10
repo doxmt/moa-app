@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 
 import { FREE_DAILY_LIMIT, useStoryData } from '@/hooks/useStoryData';
+import { useToast } from '@/hooks/useToast';
 import { LOCK_AFTER_DAYS, Story } from '@/lib/supabase/stories';
 import { styles } from '@/components/features/story/story.styles';
 import StoryUploadModal from '@/components/features/story/StoryUploadModal';
@@ -151,6 +152,7 @@ function StorySection({
 
 export default function StoryScreen() {
   const router = useRouter();
+  const { showToast } = useToast();
   const {
     userId,
     myNickname,
@@ -167,11 +169,7 @@ export default function StoryScreen() {
   } = useStoryData();
 
   const handleLockedPress = () => {
-    Alert.alert(
-      '잠긴 스토리',
-      `7일 이전 기록은 프리미엄 이용자만 볼 수 있어요\n우리의 소중한 추억을 모두 확인해보세요`,
-      [{ text: '확인' }]
-    );
+    showToast('7일 이전 기록은 프리미엄 이용자만 볼 수 있어요');
   };
 
   const [uploadUri, setUploadUri] = useState<string | null>(null);
@@ -190,7 +188,7 @@ export default function StoryScreen() {
 
   const pickImage = async () => {
     if (uploadLimitReached) {
-      Alert.alert('업로드 한도', `하루 ${FREE_DAILY_LIMIT}장까지 업로드할 수 있어요`);
+      showToast(`하루 ${FREE_DAILY_LIMIT}장까지 업로드할 수 있어요`);
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({

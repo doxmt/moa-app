@@ -40,7 +40,7 @@ export default function MilestoneList({ milestones, totalDays, onLoadMore }: Pro
             isToday ? styles.diffToday : isPast ? styles.diffPast : styles.diffFuture,
           ]}
         >
-          {isToday ? '오늘 💕' : isPast ? `D+${Math.abs(m.diff)}` : `D-${m.diff}`}
+          {isToday ? '오늘' : isPast ? `D+${Math.abs(m.diff)}` : `D-${m.diff}`}
         </Text>
       </View>
     );

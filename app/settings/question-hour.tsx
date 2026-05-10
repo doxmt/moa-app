@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Alert, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
+
+import { useToast } from '@/hooks/useToast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -14,6 +16,7 @@ const MINUTES = Array.from({ length: 6 }, (_, i) => i * 10);
 export default function QuestionHourScreen() {
   const router = useRouter();
   const { top } = useSafeAreaInsets();
+  const { showToast } = useToast();
   const [coupleId, setCoupleId] = useState<string | null>(null);
   const [hour, setHour] = useState(0);
   const [minute, setMinute] = useState(0);
@@ -61,7 +64,7 @@ export default function QuestionHourScreen() {
 
     setSaving(false);
     if (error) {
-      Alert.alert('오류', '저장에 실패했어요. 다시 시도해주세요.');
+      showToast('저장에 실패했어요. 다시 시도해주세요.');
       return;
     }
     router.back();

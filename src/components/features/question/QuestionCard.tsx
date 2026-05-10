@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
+import { useToast } from '@/hooks/useToast';
 
 import { GameItem } from '@/hooks/useQuestionData';
 
@@ -13,6 +15,7 @@ interface Props {
 }
 
 export default function QuestionCard({ game, myNickname, partnerNickname, onSubmitAnswer, onSaveReason, readOnly }: Props) {
+  const { showToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
 
@@ -23,7 +26,7 @@ export default function QuestionCard({ game, myNickname, partnerNickname, onSubm
       await onSaveReason(game.id, editValue);
       setIsEditing(false);
     } catch (e) {
-      Alert.alert('저장 실패', e instanceof Error ? e.message : '이유를 저장하지 못했어요.');
+      showToast(e instanceof Error ? e.message : '이유를 저장하지 못했어요.');
     }
   };
 

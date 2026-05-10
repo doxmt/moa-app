@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+import { useToast } from '@/hooks/useToast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -11,6 +13,7 @@ export default function DeleteAccountScreen() {
   const router = useRouter();
   const { top } = useSafeAreaInsets();
   const { signOut } = useAuthStore();
+  const { showToast } = useToast();
   const [showDialog, setShowDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -29,7 +32,7 @@ export default function DeleteAccountScreen() {
       );
 
       if (!res.ok) {
-        Alert.alert('오류', '탈퇴 처리 중 문제가 발생했어요. 다시 시도해주세요.');
+        showToast('탈퇴 처리 중 문제가 발생했어요. 다시 시도해주세요.');
         return;
       }
 
@@ -39,7 +42,7 @@ export default function DeleteAccountScreen() {
         // signOut 실패해도 계정은 삭제됨 — 무시
       }
     } catch {
-      Alert.alert('오류', '네트워크 오류가 발생했어요. 다시 시도해주세요.');
+      showToast('네트워크 오류가 발생했어요. 다시 시도해주세요.');
     } finally {
       setDeleting(false);
       setShowDialog(false);

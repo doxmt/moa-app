@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react'
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,6 +11,7 @@ import { useCalendarData, DisplayEvent } from '@/hooks/useCalendarData'
 import CalendarGrid from '@/components/features/calendar/CalendarGrid'
 import MilestoneList, { MilestoneItem } from '@/components/features/calendar/MilestoneList'
 import EventForm, { EventData } from '@/components/features/calendar/EventForm'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { toDateStr } from '@/utils/date'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
@@ -59,6 +59,8 @@ export default function CalendarScreen() {
   const [formInitialDate, setFormInitialDate] = useState(todayStr)
   const [editingEvent, setEditingEvent] = useState<DisplayEvent | null>(null)
   const [maxFutureDays, setMaxFutureDays] = useState(1000)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deletingEventId, setDeletingEventId] = useState<string | null>(null)
 
   // 달력 셀 배열
   const rows = useMemo(() => {
@@ -90,13 +92,6 @@ export default function CalendarScreen() {
 
   const handleSubmit = async (data: EventData) => {
     if (editingEvent) {
-      const confirmed = await new Promise<boolean>((resolve) => {
-        Alert.alert('일정 수정', '이 일정을 수정할까요?', [
-          { text: '취소', style: 'cancel', onPress: () => resolve(false) },
-          { text: '수정', onPress: () => resolve(true) },
-        ])
-      })
-      if (!confirmed) return
       await editEvent(editingEvent.id, {
         title: data.title,
         color: data.color,
@@ -107,6 +102,7 @@ export default function CalendarScreen() {
         endTime: data.endTime,
         description: data.description,
       })
+      setEditingEvent(null)
     } else {
       await createEvent({
         title: data.title,
@@ -119,7 +115,6 @@ export default function CalendarScreen() {
         description: data.description,
       })
     }
-    setEditingEvent(null)
     setShowForm(false)
   }
 
@@ -301,10 +296,8 @@ export default function CalendarScreen() {
                           <TouchableOpacity
                             onPress={(e) => {
                               e.stopPropagation()
-                              Alert.alert('일정 삭제', '이 일정을 삭제할까요?', [
-                                { text: '취소', style: 'cancel' },
-                                { text: '삭제', style: 'destructive', onPress: () => removeEvent(event.id) },
-                              ])
+                              setDeletingEventId(event.id)
+                              setShowDeleteConfirm(true)
                             }}
                           >
                             <Text style={styles.deleteIcon}>✕</Text>
@@ -319,6 +312,15 @@ export default function CalendarScreen() {
           </ScrollView>
         </View>
       )}
+
+      <ConfirmDialog
+        visible={showDeleteConfirm}
+        title="일정을 삭제할까요?"
+        confirmText="삭제"
+        destructive
+        onConfirm={() => { setShowDeleteConfirm(false); if (deletingEventId) removeEvent(deletingEventId) }}
+        onCancel={() => { setShowDeleteConfirm(false); setDeletingEventId(null) }}
+      />
 
       {/* 일정 추가/수정 폼 */}
       <EventForm

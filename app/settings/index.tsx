@@ -1,5 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Alert, Linking, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+import { useToast } from '@/hooks/useToast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
@@ -66,6 +68,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { top } = useSafeAreaInsets();
   const { signOut } = useAuthStore();
+  const { showToast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [refreshMinutes, setRefreshMinutes] = useState(0);
   const [coupleId, setCoupleId] = useState<string | null>(null);
@@ -139,7 +142,7 @@ export default function SettingsScreen() {
 
     if (updateErr) {
       setDisconnecting(false);
-      Alert.alert('오류', '연결 끊기에 실패했어요. 다시 시도해주세요.');
+      showToast('연결 끊기에 실패했어요. 다시 시도해주세요.');
       return;
     }
 
@@ -208,9 +211,6 @@ export default function SettingsScreen() {
           <Row
             label="버전 정보"
             value={Constants.expoConfig?.version ?? '1.0.0'}
-            onPress={() =>
-              Alert.alert('버전 정보', `moa v${Constants.expoConfig?.version ?? '1.0.0'}`)
-            }
           />
         </Section>
 
