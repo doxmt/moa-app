@@ -24,7 +24,7 @@ export default function CalendarGrid({
   userId, myAvatar, partnerAvatar, onDayPress, year, month,
 }: Props) {
   const getIcon = (ev: DisplayEvent) => {
-    if (ev.id.startsWith('holiday-')) return '⚪';
+    if (ev.id.startsWith('holiday-')) return '';
     if (ev.id === 'bday-anniversary' || ev.id.startsWith('milestone-')) return '💕';
     if (ev.id === 'bday-my') return myAvatar;
     if (ev.id === 'bday-partner') return partnerAvatar;

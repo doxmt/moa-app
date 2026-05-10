@@ -46,6 +46,7 @@ export default function CalendarScreen() {
     goToNextMonth,
     createEvent,
     removeEvent,
+    editEvent,
   } = useCalendarData()
 
   const todayStr = useMemo(() => {
@@ -56,6 +57,7 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [formInitialDate, setFormInitialDate] = useState(todayStr)
+  const [editingEvent, setEditingEvent] = useState<DisplayEvent | null>(null)
   const [maxFutureDays, setMaxFutureDays] = useState(1000)
 
   // 달력 셀 배열
@@ -75,21 +77,49 @@ export default function CalendarScreen() {
   const selectedEvents = selectedDate ? (eventsByDate[selectedDate] ?? []) : []
 
   const openForm = (date: string) => {
+    setEditingEvent(null)
     setFormInitialDate(date)
     setShowForm(true)
   }
 
+  const openEditForm = (event: DisplayEvent) => {
+    setEditingEvent(event)
+    setFormInitialDate(event.start_date)
+    setShowForm(true)
+  }
+
   const handleSubmit = async (data: EventData) => {
-    await createEvent({
-      title: data.title,
-      color: data.color,
-      isAllDay: data.isAllDay,
-      startDate: data.startDate,
-      endDate: data.endDate,
-      startTime: data.startTime,
-      endTime: data.endTime,
-      description: data.description,
-    })
+    if (editingEvent) {
+      const confirmed = await new Promise<boolean>((resolve) => {
+        Alert.alert('일정 수정', '이 일정을 수정할까요?', [
+          { text: '취소', style: 'cancel', onPress: () => resolve(false) },
+          { text: '수정', onPress: () => resolve(true) },
+        ])
+      })
+      if (!confirmed) return
+      await editEvent(editingEvent.id, {
+        title: data.title,
+        color: data.color,
+        isAllDay: data.isAllDay,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        description: data.description,
+      })
+    } else {
+      await createEvent({
+        title: data.title,
+        color: data.color,
+        isAllDay: data.isAllDay,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        description: data.description,
+      })
+    }
+    setEditingEvent(null)
     setShowForm(false)
   }
 
@@ -155,7 +185,7 @@ export default function CalendarScreen() {
   }, [anniversary, maxFutureDays])
 
   const getEventIcon = (event: DisplayEvent) => {
-    if (event.id.startsWith('holiday-')) return '⚪️'
+    if (event.id.startsWith('holiday-')) return '🔴'
     if (event.id === 'bday-anniversary' || event.id.startsWith('milestone-')) return '💕'
     if (event.id === 'bday-my') return myAvatar
     if (event.id === 'bday-partner') return partnerAvatar
@@ -243,50 +273,69 @@ export default function CalendarScreen() {
               <Text className="text-sm text-moa-placeholder text-center py-2">일정이 없어요</Text>
             ) : (
               <View className="gap-2 pb-4">
-                {selectedEvents.map((event) => (
-                  <View key={event.id} style={styles.eventCard}>
-                    <View className="flex-row items-start gap-2.5 flex-1">
-                      <View style={[styles.eventColorDot, { backgroundColor: event.color }]} />
-                      <View className="flex-1">
-                        <Text className="text-sm font-medium text-moa-text">{event.title}</Text>
-                        <Text className="text-xs text-moa-muted mt-0.5">{formatTimeLabel(event)}</Text>
-                        {event.description ? (
-                          <Text className="text-xs text-moa-sub mt-0.5">{event.description}</Text>
-                        ) : null}
+                {selectedEvents.map((event) => {
+                  const isMyEvent = !event.isBirthday && event.created_by === userId
+                  return (
+                    <TouchableOpacity
+                      key={event.id}
+                      style={styles.eventCard}
+                      onPress={() => isMyEvent ? openEditForm(event) : undefined}
+                      activeOpacity={isMyEvent ? 0.7 : 1}
+                    >
+                      <View className="flex-row items-start gap-2.5 flex-1">
+                        <View style={[styles.eventColorDot, { backgroundColor: event.color }]} />
+                        <View className="flex-1">
+                          <Text className="text-sm font-medium text-moa-text">{event.title}</Text>
+                          <Text className="text-xs text-moa-muted mt-0.5">{formatTimeLabel(event)}</Text>
+                          {event.description ? (
+                            <Text className="text-xs text-moa-sub mt-0.5">{event.description}</Text>
+                          ) : null}
+                        </View>
                       </View>
-                    </View>
-                    <View className="items-center gap-0.5 ml-3">
-                      <View style={styles.avatarBadge}>
-                        <Text style={styles.avatarText}>{getEventIcon(event)}</Text>
+                      <View className="items-center gap-0.5 ml-3">
+                        <View style={styles.avatarBadge}>
+                          <Text style={styles.avatarText}>{getEventIcon(event)}</Text>
+                        </View>
+                        <Text style={styles.ownerLabel}>{getEventOwnerLabel(event)}</Text>
+                        {isMyEvent && (
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation()
+                              Alert.alert('일정 삭제', '이 일정을 삭제할까요?', [
+                                { text: '취소', style: 'cancel' },
+                                { text: '삭제', style: 'destructive', onPress: () => removeEvent(event.id) },
+                              ])
+                            }}
+                          >
+                            <Text style={styles.deleteIcon}>✕</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
-                      <Text style={styles.ownerLabel}>{getEventOwnerLabel(event)}</Text>
-                      {!event.isBirthday && event.created_by === userId && (
-                        <TouchableOpacity
-                          onPress={() =>
-                            Alert.alert('일정 삭제', '이 일정을 삭제할까요?', [
-                              { text: '취소', style: 'cancel' },
-                              { text: '삭제', style: 'destructive', onPress: () => removeEvent(event.id) },
-                            ])
-                          }
-                        >
-                          <Text style={styles.deleteIcon}>✕</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-                ))}
+                    </TouchableOpacity>
+                  )
+                })}
               </View>
             )}
           </ScrollView>
         </View>
       )}
 
-      {/* 일정 추가 폼 */}
+      {/* 일정 추가/수정 폼 */}
       <EventForm
         visible={showForm}
         initialDate={formInitialDate}
         submitting={submitting}
-        onClose={() => setShowForm(false)}
+        initialData={editingEvent ? {
+          title: editingEvent.title,
+          color: editingEvent.color,
+          isAllDay: editingEvent.is_all_day,
+          startDate: editingEvent.start_date,
+          endDate: editingEvent.end_date,
+          startTime: editingEvent.start_time ?? undefined,
+          endTime: editingEvent.end_time ?? undefined,
+          description: editingEvent.description ?? undefined,
+        } : undefined}
+        onClose={() => { setEditingEvent(null); setShowForm(false) }}
         onSubmit={handleSubmit}
       />
     </View>

@@ -6,6 +6,7 @@ import {
   getEventsByMonth,
   addEvent,
   deleteEvent,
+  updateEvent,
 } from '@/lib/supabase/calendar'
 import { getKoreanHolidays } from '@/utils/holidays'
 
@@ -202,6 +203,34 @@ export function useCalendarData() {
     [state.coupleId, state.year, state.month]
   )
 
+  const editEvent = useCallback(
+    async (eventId: string, input: Omit<CreateEventInput, 'coupleId' | 'userId'>) => {
+      setState((prev) => ({ ...prev, submitting: true }))
+      try {
+        const updated = await updateEvent({
+          eventId,
+          title: input.title,
+          color: input.color,
+          isAllDay: input.isAllDay,
+          startDate: input.startDate,
+          endDate: input.endDate,
+          startTime: input.startTime,
+          endTime: input.endTime,
+          description: input.description,
+        })
+        setState((prev) => ({
+          ...prev,
+          events: prev.events.map((e) => (e.id === eventId ? updated : e)),
+          submitting: false,
+        }))
+      } catch (e) {
+        console.error('[calendar] editEvent failed', e)
+        setState((prev) => ({ ...prev, submitting: false }))
+      }
+    },
+    []
+  )
+
   // 생일 + 기념일 + 마일스톤 가상 이벤트 생성
   const birthdayEvents: DisplayEvent[] = []
   const monthStr = String(state.month).padStart(2, '0')
@@ -300,5 +329,6 @@ export function useCalendarData() {
     goToNextMonth,
     createEvent,
     removeEvent,
+    editEvent,
   }
 }
