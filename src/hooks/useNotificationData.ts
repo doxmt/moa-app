@@ -30,7 +30,6 @@ export function useNotificationData() {
   const deleteAllMutation = useMutation({
     mutationFn: deleteAllNotifications,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
-    onError: (error) => console.error('[deleteAll error]', error),
   });
 
   const deleteOneMutation = useMutation({

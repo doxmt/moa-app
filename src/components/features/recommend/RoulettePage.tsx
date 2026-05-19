@@ -88,7 +88,6 @@ export function RoulettePage({ onBack }: { onBack: () => void }) {
 
   const { width } = useWindowDimensions();
   const wheelSize = Math.min(width - 80, 280);
-  const chipWidth = Math.floor((width - 56) / 3);
 
   useEffect(() => {
     fetchCoupleBasic().then((couple) => {

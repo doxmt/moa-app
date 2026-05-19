@@ -24,8 +24,7 @@ async function checkProfileComplete(userId: string): Promise<boolean> {
       .eq('user_id', userId)
       .maybeSingle();
     return !!data?.name;
-  } catch (e) {
-    console.warn('[authStore] checkProfileComplete failed', e);
+  } catch {
     return false;
   }
 }

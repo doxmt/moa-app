@@ -28,10 +28,11 @@ export default function WheelColumn({ items, selected, onSelect, format }: Props
   useEffect(() => {
     const idx = items.indexOf(selected)
     if (idx < 0) return
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       scrollRef.current?.scrollTo({ y: idx * ITEM_HEIGHT, animated: false })
     }, 50)
-  }, [])
+    return () => clearTimeout(timer)
+  }, [items, selected])
 
   useEffect(() => {
     if (prevSelectedRef.current === selected || isDraggingRef.current) return
