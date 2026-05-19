@@ -7,6 +7,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import Constants from 'expo-constants';
 import { Check, ChevronLeft, ChevronRight, Copy } from 'lucide-react-native';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
@@ -69,6 +70,7 @@ export default function SettingsScreen() {
   const { top } = useSafeAreaInsets();
   const { signOut } = useAuthStore();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [refreshMinutes, setRefreshMinutes] = useState(0);
   const [coupleId, setCoupleId] = useState<string | null>(null);
@@ -163,6 +165,8 @@ export default function SettingsScreen() {
 
     setDisconnecting(false);
     setShowDisconnectDialog(false);
+    queryClient.invalidateQueries({ queryKey: ['home-data'] });
+    queryClient.invalidateQueries({ queryKey: ['question-data'] });
     router.replace('/(tabs)/home');
   };
 

@@ -62,9 +62,9 @@ export default function DeleteAccountScreen() {
         <View className="gap-3">
           <Text className="text-base font-semibold text-moa-text">탈퇴 전 확인해주세요</Text>
           <View className="gap-2">
-            <Text className="text-sm text-moa-sub leading-6">• 탈퇴 시 모든 데이터가 즉시 삭제돼요.</Text>
-            <Text className="text-sm text-moa-sub leading-6">• 커플 연결이 해제되고 상대방의 커플 데이터도 삭제돼요.</Text>
-            <Text className="text-sm text-moa-sub leading-6">• 삭제된 데이터는 복구할 수 없어요.</Text>
+            <Text className="text-sm text-moa-sub leading-6">• 내 계정과 프로필 정보가 삭제돼요.</Text>
+            <Text className="text-sm text-moa-sub leading-6">• 커플 연결은 해제되고 상대방은 앱을 계속 사용할 수 있어요.</Text>
+            <Text className="text-sm text-moa-sub leading-6">• 두 분 모두 연결이 해제된 커플 데이터는 30일 후 삭제돼요.</Text>
           </View>
         </View>
 
@@ -94,8 +94,8 @@ export default function DeleteAccountScreen() {
               정말 탈퇴할까요?
             </Text>
             <Text className="text-xs text-moa-sub text-center leading-5">
-              탈퇴하면 모든 데이터가 삭제되고{'\n'}
-              <Text style={{ textDecorationLine: 'underline' }}>복구할 수 없어요.</Text>
+              내 계정은 삭제되고 커플 연결이 해제돼요.{'\n'}
+              <Text style={{ textDecorationLine: 'underline' }}>삭제된 계정은 복구할 수 없어요.</Text>
             </Text>
             <View className="flex-row gap-2">
               <TouchableOpacity
