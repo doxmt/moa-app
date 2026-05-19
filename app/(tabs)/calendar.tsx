@@ -14,8 +14,6 @@ import EventForm, { EventData } from '@/components/features/calendar/EventForm'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { toDateStr } from '@/utils/date'
 
-const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
-
 function formatTimeLabel(event: DisplayEvent) {
   if (event.is_all_day) {
     return event.start_date !== event.end_date
