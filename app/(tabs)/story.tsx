@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
+import { Camera, ImagePlus } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { FREE_DAILY_LIMIT, useStoryData } from '@/hooks/useStoryData';
@@ -33,6 +34,57 @@ function groupByDate(stories: Story[]): { key: string; dateLabel: string; storie
       const [y, m, d] = key.split('-');
       return { key, dateLabel: `${Number(y)}년 ${Number(m)}월 ${Number(d)}일`, stories };
     });
+}
+
+function UploadPrompt({
+  todayUploadCount,
+  dailyLimit,
+  isPremium,
+  limitReached,
+  onPress,
+}: {
+  todayUploadCount: number;
+  dailyLimit: number;
+  isPremium: boolean;
+  limitReached: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <View className="px-5 pb-5">
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.85}
+        className="rounded-2xl border border-moa-border bg-[#FBFBFB] overflow-hidden"
+        style={uploadPromptStyles.wrap}
+      >
+        <View className="flex-row items-center p-4 gap-4">
+          <View className="w-[72px] h-[72px] rounded-2xl bg-white border border-moa-border items-center justify-center">
+            <ImagePlus size={30} color="#222222" strokeWidth={1.9} />
+          </View>
+
+          <View className="flex-1 gap-1">
+            <View className="flex-row items-center gap-2">
+              <Text className="text-base font-semibold text-moa-text">오늘의 순간 추가</Text>
+              <View className="rounded-full bg-moa-text px-2.5 py-1">
+                <Text className="text-[11px] text-white font-semibold">
+                  {isPremium ? '무제한' : `${todayUploadCount}/${dailyLimit}`}
+                </Text>
+              </View>
+            </View>
+            <Text className="text-sm text-moa-sub leading-5">
+              사진을 선택하거나 바로 촬영해서 기록해보세요
+            </Text>
+            <View className="flex-row items-center gap-1.5 pt-1">
+              <Camera size={14} color={limitReached ? '#AAAAAA' : '#222222'} strokeWidth={2.1} />
+              <Text className={`text-xs font-medium ${limitReached ? 'text-moa-muted' : 'text-moa-text'}`}>
+                {limitReached ? '오늘 업로드 제한 도달' : '스토리 추가하기'}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
 }
 
 function DateGroup({
@@ -162,6 +214,7 @@ export default function StoryScreen() {
     submitting,
     isConnected,
     isPremium,
+    todayUploadCount,
     uploadLimitReached,
     uploadStory,
     editCaption,
@@ -172,6 +225,7 @@ export default function StoryScreen() {
     showToast('7일 이전 기록은 프리미엄 이용자만 볼 수 있어요');
   };
 
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadUri, setUploadUri] = useState<string | null>(null);
   const [viewerGroup, setViewerGroup] = useState<Story[] | null>(null);
   const [viewerIndex, setViewerIndex] = useState(0);
@@ -186,11 +240,15 @@ export default function StoryScreen() {
 
   const closeViewer = () => setViewerGroup(null);
 
-  const pickImage = async () => {
+  const openUpload = () => {
     if (uploadLimitReached) {
       showToast(`하루 ${FREE_DAILY_LIMIT}장까지 업로드할 수 있어요`);
       return;
     }
+    setUploadOpen(true);
+  };
+
+  const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
@@ -200,20 +258,33 @@ export default function StoryScreen() {
     }
   };
 
+  const takePhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      showToast('촬영하려면 카메라 권한이 필요해요');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setUploadUri(result.assets[0].uri);
+    }
+  };
+
+  const closeUpload = () => {
+    setUploadOpen(false);
+    setUploadUri(null);
+  };
+
   return (
     <View className="flex-1 bg-white">
       {/* 헤더 */}
       <View className="flex-row items-center justify-between px-5 py-4">
         <Text className="text-base font-semibold text-moa-text">스토리</Text>
-        <TouchableOpacity
-          disabled={!isConnected}
-          onPress={pickImage}
-          className={`w-8 h-8 rounded-full items-center justify-center ${isConnected && !uploadLimitReached ? 'bg-moa-text' : 'bg-moa-placeholder'}`}
-        >
-          <Svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="white" strokeWidth={2.5}>
-            <Path d="M12 5v14M5 12h14" strokeLinecap="round" />
-          </Svg>
-        </TouchableOpacity>
+        <View className="w-8 h-8" />
       </View>
 
       {/* 본문 */}
@@ -236,6 +307,13 @@ export default function StoryScreen() {
         </View>
       ) : (
         <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+          <UploadPrompt
+            todayUploadCount={todayUploadCount}
+            dailyLimit={FREE_DAILY_LIMIT}
+            isPremium={isPremium}
+            limitReached={uploadLimitReached}
+            onPress={openUpload}
+          />
           <StorySection
             nickname={partnerNickname}
             stories={partnerStories}
@@ -256,13 +334,19 @@ export default function StoryScreen() {
 
       {/* 업로드 모달 */}
       <StoryUploadModal
+        visible={uploadOpen}
         uri={uploadUri}
         submitting={submitting}
+        todayUploadCount={todayUploadCount}
+        dailyLimit={FREE_DAILY_LIMIT}
+        isPremium={isPremium}
+        onPickImage={pickImage}
+        onTakePhoto={takePhoto}
         onUpload={async (uri, caption) => {
           await uploadStory(uri, caption);
-          setUploadUri(null);
+          closeUpload();
         }}
-        onCancel={() => setUploadUri(null)}
+        onCancel={closeUpload}
       />
 
       {/* 풀스크린 뷰어 */}
@@ -292,3 +376,12 @@ const lockedCellStyle = StyleSheet.create({
   },
 });
 
+const uploadPromptStyles = StyleSheet.create({
+  wrap: {
+    shadowColor: '#000000',
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 1,
+  },
+});

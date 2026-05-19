@@ -11,18 +11,19 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
-import Svg, { Path, Polyline } from 'react-native-svg';
+import { ChevronLeft, ChevronRight, Download, Pencil, Trash2, X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Story } from '@/lib/supabase/stories';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
 import { formatDateDot, formatTime } from '@/utils/date';
+import StoryUploadModal from './StoryUploadModal';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -47,10 +48,12 @@ export default function StoryViewer({
   onEditCaption,
   onDelete,
 }: Props) {
+  const insets = useSafeAreaInsets();
   const [viewerGroup, setViewerGroup] = useState<Story[]>(initialGroup);
   const [viewerIndex, setViewerIndex] = useState(initialIndex);
   const [editingCaption, setEditingCaption] = useState(false);
   const [editCaptionValue, setEditCaptionValue] = useState('');
+  const [savingCaption, setSavingCaption] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
   const { showToast } = useToast();
@@ -102,12 +105,17 @@ export default function StoryViewer({
     })
   ).current;
 
-  const handleCaptionSave = async () => {
+  const handleCaptionSave = async (captionValue?: string | null) => {
     if (!selected) return;
-    await onEditCaption(selected.id, editCaptionValue.trim() || null);
-    const newCaption = editCaptionValue.trim() || null;
-    setViewerGroup((g) => g.map((s, i) => (i === viewerIndex ? { ...s, caption: newCaption } : s)));
-    setEditingCaption(false);
+    const newCaption = captionValue !== undefined ? captionValue : editCaptionValue.trim() || null;
+    setSavingCaption(true);
+    try {
+      await onEditCaption(selected.id, newCaption);
+      setViewerGroup((g) => g.map((s, i) => (i === viewerIndex ? { ...s, caption: newCaption } : s)));
+      setEditingCaption(false);
+    } finally {
+      setSavingCaption(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -146,67 +154,34 @@ export default function StoryViewer({
   };
 
   const getDotStyle = (active: boolean) => ({
-    width: active ? 8 : 6,
-    height: active ? 8 : 6,
-    backgroundColor: active ? 'white' : 'rgba(255,255,255,0.3)',
+    width: active ? 18 : 6,
+    height: 6,
+    backgroundColor: active ? '#222222' : '#E0E0E0',
   });
 
   if (!selected) return null;
 
   return (
-    <Modal visible transparent animationType="fade">
+    <Modal visible animationType="slide">
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-        <View className="flex-1" {...panResponder.panHandlers}>
-          {/* 배경 */}
-          <View className="absolute inset-0 bg-black/70" />
-
-          {/* 상단 바 */}
-          <View className="flex-row items-center justify-between px-4 pt-12 pb-4">
-            <View className="flex-row items-center gap-2">
-              <Text className="text-white text-sm font-medium">
+        <View className="flex-1 bg-white" {...panResponder.panHandlers}>
+          <View className="flex-row items-center justify-between px-5 pt-16 pb-4 border-b border-moa-border">
+            <View className="w-10 h-10" />
+            <View className="items-center">
+              <Text className="text-moa-text text-base font-semibold">
                 {selected.created_by === userId ? myNickname : partnerNickname}
               </Text>
-              <Text className="text-white/60 text-sm">{formatDateDot(selected.created_at)} {formatTime(selected.created_at)}</Text>
+              <Text className="text-moa-sub text-xs">
+                {formatDateDot(selected.created_at)} {formatTime(selected.created_at)}
+              </Text>
             </View>
-            <View className="flex-row items-center gap-3">
-              {isMyStory && (
-                <>
-                  <TouchableOpacity
-                    onPress={() => { setEditCaptionValue(selected.caption ?? ''); setEditingCaption(true); }}
-                  >
-                    <Svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth={2}>
-                      <Path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" />
-                      <Path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" />
-                    </Svg>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setShowDeleteConfirm(true)}>
-                    <Svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth={2}>
-                      <Polyline points="3 6 5 6 21 6" strokeLinecap="round" strokeLinejoin="round" />
-                      <Path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" strokeLinecap="round" strokeLinejoin="round" />
-                      <Path d="M10 11v6M14 11v6" strokeLinecap="round" />
-                      <Path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" strokeLinecap="round" strokeLinejoin="round" />
-                    </Svg>
-                  </TouchableOpacity>
-                </>
-              )}
-              {!isMyStory && (
-                <TouchableOpacity onPress={handleSaveToGallery}>
-                  <Svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth={2}>
-                    <Path d="M12 15V3M7 10l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
-                    <Path d="M20 21H4" strokeLinecap="round" />
-                  </Svg>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity onPress={onClose}>
-                <Svg viewBox="0 0 24 24" width={24} height={24} fill="none" stroke="white" strokeWidth={2}>
-                  <Path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
-                </Svg>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity onPress={onClose} className="w-10 h-10 rounded-full bg-[#F6F6F6] items-center justify-center">
+              <X size={21} color="#222222" strokeWidth={2.2} />
+            </TouchableOpacity>
           </View>
 
-          {/* 사진 */}
-          <View style={styles.imageWrap} className="items-center justify-center">
+          <View className="px-5 pt-5 pb-3">
+            <View style={styles.imageWrap} className="items-center justify-center rounded-2xl bg-moa-bg overflow-hidden">
             {selected.signed_url && (
               <Image
                 key={selected.id}
@@ -218,74 +193,106 @@ export default function StoryViewer({
             {viewerIndex > 0 && (
               <TouchableOpacity
                 onPress={goPrev}
-                className="absolute left-3 w-8 h-8 rounded-full items-center justify-center"
+                className="absolute left-3 w-9 h-9 rounded-full bg-white/90 items-center justify-center"
                 style={styles.navBtn}
               >
-                <Svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="white" strokeWidth={2}>
-                  <Path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-                </Svg>
+                <ChevronLeft size={22} color="#222222" strokeWidth={2.3} />
               </TouchableOpacity>
             )}
             {viewerIndex < viewerGroup.length - 1 && (
               <TouchableOpacity
                 onPress={goNext}
-                className="absolute right-3 w-8 h-8 rounded-full items-center justify-center"
+                className="absolute right-3 w-9 h-9 rounded-full bg-white/90 items-center justify-center"
                 style={styles.navBtn}
               >
-                <Svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="white" strokeWidth={2}>
-                  <Path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
-                </Svg>
+                <ChevronRight size={22} color="#222222" strokeWidth={2.3} />
               </TouchableOpacity>
+            )}
+            </View>
+
+            {viewerGroup.length > 1 && (
+              <View className="flex-row items-center justify-center gap-1.5 pt-4">
+                {viewerGroup.map((_, i) => (
+                  <View key={i} className="rounded-full" style={getDotStyle(i === viewerIndex)} />
+                ))}
+              </View>
             )}
           </View>
 
-          {/* 점 인디케이터 */}
-          {viewerGroup.length > 1 && (
-            <View className="flex-row items-center justify-center gap-1.5 pt-3">
-              {viewerGroup.map((_, i) => (
-                <View key={i} className="rounded-full" style={getDotStyle(i === viewerIndex)} />
-              ))}
+          <View className="px-5 pt-1 pb-3 bg-white">
+            <View style={styles.captionArea}>
+              {selected.caption ? (
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <Text className="text-moa-text text-sm leading-relaxed">{selected.caption}</Text>
+                </ScrollView>
+              ) : (
+                <Text className="text-moa-placeholder text-sm">캡션이 없어요</Text>
+              )}
+            </View>
+          </View>
+
+          <View className="flex-1" />
+
+          {!editingCaption && (
+            <View
+              className="px-5 pt-3 border-t border-moa-border bg-white"
+              style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+            >
+              <View className="flex-row gap-3">
+                {isMyStory ? (
+                  <>
+                    <TouchableOpacity
+                      onPress={() => { setEditCaptionValue(selected.caption ?? ''); setEditingCaption(true); }}
+                      className="flex-1 h-11 rounded-2xl border border-moa-border items-center justify-center"
+                    >
+                      <View className="flex-row items-center gap-2">
+                        <Pencil size={15} color="#222222" strokeWidth={2.2} />
+                        <Text className="text-moa-text text-sm font-semibold">수정</Text>
+                      </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setShowDeleteConfirm(true)}
+                      className="flex-1 h-11 rounded-2xl border border-moa-border items-center justify-center"
+                    >
+                      <View className="flex-row items-center gap-2">
+                        <Trash2 size={15} color="#222222" strokeWidth={2.2} />
+                        <Text className="text-moa-text text-sm font-semibold">삭제</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TouchableOpacity
+                    onPress={handleSaveToGallery}
+                    className="h-11 rounded-2xl bg-moa-text items-center justify-center flex-1"
+                  >
+                    <View className="flex-row items-center gap-2">
+                      <Download size={15} color="white" strokeWidth={2.2} />
+                      <Text className="text-white text-sm font-semibold">사진 저장</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           )}
 
-          {/* 캡션 */}
-          <View className="px-5 pb-12 pt-3" style={styles.captionArea}>
-            {editingCaption ? (
-              <View className="flex-row gap-2 items-start">
-                <TextInput
-                  value={editCaptionValue}
-                  onChangeText={setEditCaptionValue}
-                  maxLength={80}
-                  autoFocus
-                  multiline
-                  blurOnSubmit={false}
-                  placeholder="캡션 입력"
-                  placeholderTextColor="rgba(255,255,255,0.4)"
-                  className="flex-1 rounded-xl px-3 py-2 text-sm text-white"
-                  style={styles.captionInput}
-                />
-                <TouchableOpacity
-                  onPress={() => setEditingCaption(false)}
-                  className="px-3 py-2 rounded-xl"
-                  style={styles.captionCancelBtn}
-                >
-                  <Text className="text-white/70 text-sm">취소</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleCaptionSave}
-                  className="px-3 py-2 rounded-xl bg-white"
-                >
-                  <Text className="text-moa-text text-sm font-medium">저장</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              selected.caption ? (
-                <ScrollView showsVerticalScrollIndicator={false}>
-                  <Text className="text-white text-sm leading-relaxed">{selected.caption}</Text>
-                </ScrollView>
-              ) : null
-            )}
-          </View>
+          <StoryUploadModal
+            visible={editingCaption}
+            uri={selected.signed_url ?? null}
+            submitting={savingCaption}
+            todayUploadCount={0}
+            dailyLimit={0}
+            isPremium
+            title="스토리 수정"
+            subtitle={`${formatDateDot(selected.created_at)} ${formatTime(selected.created_at)}`}
+            submitText="저장"
+            initialCaption={editCaptionValue}
+            showSourceActions={false}
+            showRemaining={false}
+            onUpload={async (_uri, caption) => {
+              await handleCaptionSave(caption);
+            }}
+            onCancel={() => setEditingCaption(false)}
+          />
 
           {/* 갤러리 권한 */}
           <ConfirmDialog
@@ -325,10 +332,14 @@ export default function StoryViewer({
 }
 
 const styles = StyleSheet.create({
-  imageWrap: { flex: 1, maxHeight: SCREEN_HEIGHT * 0.7 },
-  image: { width: SCREEN_WIDTH, flex: 1 },
-  navBtn: { backgroundColor: 'rgba(0,0,0,0.4)' },
-  captionArea: { minHeight: 80, maxHeight: 160 },
-  captionInput: { backgroundColor: 'rgba(255,255,255,0.1)' },
-  captionCancelBtn: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  imageWrap: { width: SCREEN_WIDTH - 40, height: SCREEN_HEIGHT * 0.52 },
+  image: { width: '100%', height: '100%' },
+  navBtn: {
+    shadowColor: '#000000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  captionArea: { minHeight: 44, maxHeight: 120 },
 });

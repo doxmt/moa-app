@@ -30,6 +30,13 @@
     "plugins": [
       "expo-router",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "스토리에 올릴 사진을 선택합니다.",
+          "cameraPermission": "스토리에 올릴 사진을 촬영합니다."
+        }
+      ],
+      [
         "expo-media-library",
         {
           "photosPermission": "스토리 사진을 갤러리에 저장합니다.",
