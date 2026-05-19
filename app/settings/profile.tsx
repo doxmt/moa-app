@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/useToast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase/client';
 import ScrollDatePicker from '@/components/ui/ScrollDatePicker';
@@ -31,6 +32,7 @@ export default function ProfileEditScreen() {
   const router = useRouter();
   const { top } = useSafeAreaInsets();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [birthday, setBirthday] = useState<DateValue>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -75,6 +77,8 @@ export default function ProfileEditScreen() {
       showToast('저장에 실패했어요. 다시 시도해주세요.');
       return;
     }
+    queryClient.invalidateQueries({ queryKey: ['home-data'] });
+    queryClient.invalidateQueries({ queryKey: ['question-data'] });
     router.back();
   };
 

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useFocusEffect } from 'expo-router'
 import { supabase } from '@/lib/supabase/client'
 import {
   CalendarEvent,
@@ -76,58 +77,72 @@ export function useCalendarData() {
     isConnected: false,
   })
 
-  useEffect(() => {
-    let cancelled = false
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user || cancelled) return
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false
+      async function loadCoupleMeta() {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user || cancelled) {
+          if (!cancelled) {
+            setState((prev) => ({ ...prev, coupleId: '', userId: '', events: [], loading: false, isConnected: false }))
+          }
+          return
+        }
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('couple_id, avatar, couple_nickname, name, birthday')
-        .eq('user_id', user.id)
-        .single()
-
-      if (cancelled) return
-      if (!profile?.couple_id) {
-        setState((prev) => ({ ...prev, loading: false, isConnected: false }))
-        return
-      }
-
-      const [{ data: partner }, { data: couple }] = await Promise.all([
-        supabase
+        const { data: profile } = await supabase
           .from('profiles')
-          .select('avatar, couple_nickname, name, birthday')
-          .eq('couple_id', profile.couple_id)
-          .neq('user_id', user.id)
-          .single(),
-        supabase
-          .from('couples')
-          .select('anniversary')
-          .eq('id', profile.couple_id)
-          .single(),
-      ])
+          .select('couple_id, avatar, couple_nickname, name, birthday')
+          .eq('user_id', user.id)
+          .single()
 
-      if (cancelled) return
-      const toMMDD = (s: string | null) => (s ? s.slice(5) : null)
+        if (cancelled) return
+        if (!profile?.couple_id) {
+          setState((prev) => ({
+            ...prev,
+            coupleId: '',
+            userId: user.id,
+            events: [],
+            loading: false,
+            isConnected: false,
+          }))
+          return
+        }
 
-      setState((prev) => ({
-        ...prev,
-        coupleId: profile.couple_id,
-        userId: user.id,
-        myAvatar: profile.avatar ?? '🐻',
-        partnerAvatar: partner?.avatar ?? '🐱',
-        myNickname: profile.couple_nickname ?? profile.name ?? '나',
-        partnerNickname: partner?.couple_nickname ?? partner?.name ?? '상대방',
-        myBirthday: toMMDD(profile.birthday ?? null),
-        partnerBirthday: toMMDD(partner?.birthday ?? null),
-        anniversary: couple?.anniversary ?? null,
-        isConnected: true,
-      }))
-    }
-    init()
-    return () => { cancelled = true }
-  }, [])
+        const [{ data: partner }, { data: couple }] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('avatar, couple_nickname, name, birthday')
+            .eq('couple_id', profile.couple_id)
+            .neq('user_id', user.id)
+            .single(),
+          supabase
+            .from('couples')
+            .select('anniversary')
+            .eq('id', profile.couple_id)
+            .single(),
+        ])
+
+        if (cancelled) return
+        const toMMDD = (s: string | null) => (s ? s.slice(5) : null)
+
+        setState((prev) => ({
+          ...prev,
+          coupleId: profile.couple_id,
+          userId: user.id,
+          myAvatar: profile.avatar ?? '🐻',
+          partnerAvatar: partner?.avatar ?? '🐱',
+          myNickname: profile.couple_nickname ?? profile.name ?? '나',
+          partnerNickname: partner?.couple_nickname ?? partner?.name ?? '상대방',
+          myBirthday: toMMDD(profile.birthday ?? null),
+          partnerBirthday: toMMDD(partner?.birthday ?? null),
+          anniversary: couple?.anniversary ?? null,
+          isConnected: true,
+        }))
+      }
+      loadCoupleMeta()
+      return () => { cancelled = true }
+    }, [])
+  )
 
   useEffect(() => {
     if (!state.coupleId) return
