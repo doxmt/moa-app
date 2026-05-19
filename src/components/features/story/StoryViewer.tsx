@@ -281,7 +281,6 @@ export default function StoryViewer({
             submitting={savingCaption}
             todayUploadCount={0}
             dailyLimit={0}
-            isPremium
             title="스토리 수정"
             subtitle={`${formatDateDot(selected.created_at)} ${formatTime(selected.created_at)}`}
             submitText="저장"

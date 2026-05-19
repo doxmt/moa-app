@@ -39,13 +39,11 @@ function groupByDate(stories: Story[]): { key: string; dateLabel: string; storie
 function UploadPrompt({
   todayUploadCount,
   dailyLimit,
-  isPremium,
   limitReached,
   onPress,
 }: {
   todayUploadCount: number;
   dailyLimit: number;
-  isPremium: boolean;
   limitReached: boolean;
   onPress: () => void;
 }) {
@@ -67,7 +65,7 @@ function UploadPrompt({
               <Text className="text-base font-semibold text-moa-text">오늘의 순간 추가</Text>
               <View className="rounded-full bg-moa-text px-2.5 py-1">
                 <Text className="text-[11px] text-white font-semibold">
-                  {isPremium ? '무제한' : `${todayUploadCount}/${dailyLimit}`}
+                  {todayUploadCount}/{dailyLimit}
                 </Text>
               </View>
             </View>
@@ -222,7 +220,7 @@ export default function StoryScreen() {
   } = useStoryData();
 
   const handleLockedPress = () => {
-    showToast('7일 이전 기록은 프리미엄 이용자만 볼 수 있어요');
+    showToast('7일 이전 기록은 현재 볼 수 없어요');
   };
 
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -310,7 +308,6 @@ export default function StoryScreen() {
           <UploadPrompt
             todayUploadCount={todayUploadCount}
             dailyLimit={FREE_DAILY_LIMIT}
-            isPremium={isPremium}
             limitReached={uploadLimitReached}
             onPress={openUpload}
           />
@@ -339,7 +336,6 @@ export default function StoryScreen() {
         submitting={submitting}
         todayUploadCount={todayUploadCount}
         dailyLimit={FREE_DAILY_LIMIT}
-        isPremium={isPremium}
         onPickImage={pickImage}
         onTakePhoto={takePhoto}
         onUpload={async (uri, caption) => {
