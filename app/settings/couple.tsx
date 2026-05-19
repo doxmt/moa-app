@@ -114,11 +114,17 @@ export default function CoupleInfoScreen() {
     }
 
     if (partnerId && coupleId) {
-      await supabase.rpc('update_partner_nickname', {
+      const { error: partnerErr } = await supabase.rpc('update_partner_nickname', {
         p_couple_id: coupleId,
         p_partner_id: partnerId,
         p_nickname: partnerNickname.trim() || null,
       });
+
+      if (partnerErr) {
+        setSaving(false);
+        showToast('상대방 별명 저장에 실패했어요. 다시 시도해주세요.');
+        return;
+      }
     }
 
     setSaving(false);
