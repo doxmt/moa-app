@@ -12,8 +12,8 @@ moa는 커플을 위한 React Native 앱입니다.
 
 ## 기술 스택
 
-- **Expo SDK 53** + React 19 + React Native 0.79
-- **Expo Router v5** — 파일 기반 라우팅
+- **Expo SDK 54** + React 19 + React Native 0.81
+- **Expo Router v6** — 파일 기반 라우팅
 - **Supabase** — 인증, DB, 스토리지
 - **NativeWind v4** — Tailwind CSS 기반 스타일링
 - **Zustand** — 상태관리

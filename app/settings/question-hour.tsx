@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/useToast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
+import { useQueryClient } from '@tanstack/react-query';
 
 import WheelColumn from '@/components/ui/WheelColumn';
 import { supabase } from '@/lib/supabase/client';
@@ -16,6 +17,7 @@ export default function QuestionHourScreen() {
   const router = useRouter();
   const { top } = useSafeAreaInsets();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const [coupleId, setCoupleId] = useState<string | null>(null);
   const [hour, setHour] = useState(0);
   const [minute, setMinute] = useState(0);
@@ -66,6 +68,8 @@ export default function QuestionHourScreen() {
       showToast('저장에 실패했어요. 다시 시도해주세요.');
       return;
     }
+    queryClient.invalidateQueries({ queryKey: ['home-data'] });
+    queryClient.invalidateQueries({ queryKey: ['question-data'] });
     router.back();
   };
 

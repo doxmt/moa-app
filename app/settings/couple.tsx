@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/useToast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase/client';
 import ScrollDatePicker from '@/components/ui/ScrollDatePicker';
@@ -31,6 +32,7 @@ export default function CoupleInfoScreen() {
   const router = useRouter();
   const { top } = useSafeAreaInsets();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const [myName, setMyName] = useState('');
   const [myNickname, setMyNickname] = useState('');
   const [partnerName, setPartnerName] = useState<string | null>(null);
@@ -128,6 +130,8 @@ export default function CoupleInfoScreen() {
     }
 
     setSaving(false);
+    queryClient.invalidateQueries({ queryKey: ['home-data'] });
+    queryClient.invalidateQueries({ queryKey: ['question-data'] });
     router.back();
   };
 
