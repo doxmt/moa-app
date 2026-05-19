@@ -1,6 +1,7 @@
 import React from 'react';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useState } from 'react';
 import { Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -94,6 +95,35 @@ export default function LoginScreen() {
   const { showToast } = useToast();
   const [loadingProvider, setLoadingProvider] = useState<Provider | null>(null);
 
+  const handleAppleLogin = async () => {
+    if (loadingProvider) return;
+    setLoadingProvider('apple');
+
+    let success = false;
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken!,
+      });
+
+      if (error) throw error;
+      success = true;
+    } catch (e: any) {
+      if (e?.code !== 'ERR_REQUEST_CANCELED') {
+        showToast(e instanceof Error ? e.message : '알 수 없는 오류가 발생했어요.');
+      }
+    } finally {
+      if (!success) setLoadingProvider(null);
+    }
+  };
+
   const handleSocialLogin = async (provider: Provider) => {
     if (loadingProvider) return;
     setLoadingProvider(provider);
@@ -144,7 +174,7 @@ export default function LoginScreen() {
 
       if (sessionError) throw sessionError;
 
-      success = true; // 성공 시 로딩 유지 (화면 전환까지)
+      success = true;
     } catch (e) {
       showToast(e instanceof Error ? e.message : '알 수 없는 오류가 발생했어요.');
     } finally {
@@ -167,7 +197,7 @@ export default function LoginScreen() {
         {visibleProviders.map(({ id, label, style, Icon }) => (
           <TouchableOpacity
             key={id}
-            onPress={() => handleSocialLogin(id)}
+            onPress={() => id === 'apple' ? handleAppleLogin() : handleSocialLogin(id)}
             disabled={!!loadingProvider}
             style={[
               styles.button,
