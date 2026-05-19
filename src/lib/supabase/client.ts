@@ -5,8 +5,8 @@ const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
 const CHUNK_SIZE = 1800;
-const chunkMetaKey = (key: string) => `${key}:chunks`;
-const chunkKey = (key: string, index: number) => `${key}:chunk:${index}`;
+const chunkMetaKey = (key: string) => `${key}_chunks`;
+const chunkKey = (key: string, index: number) => `${key}_chunk_${index}`;
 
 const secureStorage = {
   async getItem(key: string) {
