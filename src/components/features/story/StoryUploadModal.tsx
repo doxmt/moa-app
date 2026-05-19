@@ -28,7 +28,6 @@ interface Props {
   submitting: boolean;
   todayUploadCount: number;
   dailyLimit: number;
-  isPremium: boolean;
   title?: string;
   subtitle?: string;
   submitText?: string;
@@ -47,7 +46,6 @@ export default function StoryUploadModal({
   submitting,
   todayUploadCount,
   dailyLimit,
-  isPremium,
   title = '스토리 올리기',
   subtitle,
   submitText = '올리기',
@@ -193,7 +191,7 @@ export default function StoryUploadModal({
               <View className="items-center">
                 <Text className="text-moa-text text-base font-semibold">{title}</Text>
                 <Text className="text-moa-sub text-xs">
-                  {subtitle ?? (isPremium ? '무제한 업로드' : `오늘 ${todayUploadCount}/${dailyLimit}장`)}
+                  {subtitle ?? `오늘 ${todayUploadCount}/${dailyLimit}장`}
                 </Text>
               </View>
 
@@ -236,7 +234,7 @@ export default function StoryUploadModal({
                 </View>
               </TouchableOpacity>
 
-              {showRemaining && !isPremium && <Text className="text-xs text-moa-sub text-center">{remaining}장 남음</Text>}
+              {showRemaining && <Text className="text-xs text-moa-sub text-center">{remaining}장 남음</Text>}
             </View>
           </View>
         </TouchableWithoutFeedback>
