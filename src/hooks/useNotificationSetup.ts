@@ -4,6 +4,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { markOneAsRead, savePushToken } from '@/lib/supabase/notifications';
 import { useAuthStore } from '@/stores/authStore';
@@ -236,6 +237,7 @@ async function scheduleLocalNotifications() {
 export function useNotificationSetup() {
   const { session } = useAuthStore();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const routerRef = useRef(router);
   routerRef.current = router;
   const handledIds = useRef(new Set<string>());
@@ -274,7 +276,13 @@ export function useNotificationSetup() {
       if (response) handleResponse(response);
     });
 
+    const receivedSub = Notifications.addNotificationReceivedListener(() => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    });
     const sub = Notifications.addNotificationResponseReceivedListener(handleResponse);
-    return () => sub.remove();
+    return () => {
+      receivedSub.remove();
+      sub.remove();
+    };
   }, []);
 }

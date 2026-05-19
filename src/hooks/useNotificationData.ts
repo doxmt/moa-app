@@ -18,8 +18,6 @@ export function useNotificationData() {
     queryKey: ['notifications'],
     queryFn: fetchNotifications,
     enabled: !!session,
-    refetchInterval: 30_000,
-    refetchIntervalInBackground: false,
   });
 
   const unreadCount = notifications.filter((n) => !n.read).length;
