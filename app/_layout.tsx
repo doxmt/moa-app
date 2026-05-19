@@ -2,7 +2,7 @@ import '../global.css';
 
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { useAuthStore } from '@/stores/authStore';
@@ -24,6 +24,14 @@ function AuthGate() {
   const segments = useSegments();
   const { session, initialized, profileComplete, initialize } = useAuthStore();
   useNotificationSetup();
+
+  const prevSessionRef = useRef(session);
+  useEffect(() => {
+    if (prevSessionRef.current && !session) {
+      queryClient.clear();
+    }
+    prevSessionRef.current = session;
+  }, [session]);
 
   useEffect(() => {
     initialize();
