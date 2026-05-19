@@ -35,13 +35,12 @@ function AuthGate() {
 
   useEffect(() => {
     initialize();
-  }, []);
+  }, [initialize]);
 
   useEffect(() => {
     if (!initialized) return;
 
     const inAuth = segments[0] === '(auth)';
-    const inOnboarding = segments[0] === '(onboarding)';
 
     if (!session) {
       if (!inAuth) router.replace('/(auth)/login');
@@ -53,7 +52,7 @@ function AuthGate() {
     if (inAuth) {
       router.replace(profileComplete ? '/(tabs)/home' : '/(onboarding)');
     }
-  }, [session, initialized, profileComplete, segments]);
+  }, [session, initialized, profileComplete, router, segments]);
 
   return null;
 }

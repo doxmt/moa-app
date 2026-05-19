@@ -1,7 +1,6 @@
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { TouchableOpacity } from 'react-native';
 import { ChevronLeft } from 'lucide-react-native';
 
 const SECTIONS = [

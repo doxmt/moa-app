@@ -8,7 +8,6 @@ import { ChevronLeft } from 'lucide-react-native';
 
 import WheelColumn from '@/components/ui/WheelColumn';
 import { supabase } from '@/lib/supabase/client';
-import { formatRefreshMinutes } from '@/utils/questionDay';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = Array.from({ length: 6 }, (_, i) => i * 10);

@@ -182,7 +182,7 @@ export default function NotificationModal({ visible, onClose }: Props) {
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
 
   const handleItemPress = (item: AppNotification) => {
-    if (!item.read) markAsRead(item.id).catch((e) => console.error('[markAsRead]', e));
+    if (!item.read) markAsRead(item.id).catch(() => {});
     onClose();
     const route = getRouteForNotificationType(item.type);
     router.push(route as Href);
@@ -258,7 +258,7 @@ export default function NotificationModal({ visible, onClose }: Props) {
         subtitle="삭제된 알림은 복구할 수 없어요."
         confirmText="삭제"
         destructive
-        onConfirm={() => { setShowDeleteAllConfirm(false); deleteAll().catch((e) => console.error('[deleteAll]', e)); }}
+        onConfirm={() => { setShowDeleteAllConfirm(false); deleteAll().catch(() => {}); }}
         onCancel={() => setShowDeleteAllConfirm(false)}
       />
       </View>

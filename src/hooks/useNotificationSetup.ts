@@ -250,8 +250,7 @@ export function useNotificationSetup() {
         await registerPushToken();
         if (cancelled) return;
         await scheduleLocalNotifications();
-      } catch (e) {
-        if (!cancelled) console.error('[push] setup failed', e);
+      } catch {
       }
     })();
     return () => { cancelled = true; };
@@ -284,5 +283,5 @@ export function useNotificationSetup() {
       receivedSub.remove();
       sub.remove();
     };
-  }, []);
+  }, [queryClient]);
 }

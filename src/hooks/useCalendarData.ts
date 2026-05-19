@@ -139,9 +139,8 @@ export function useCalendarData() {
         const events = await getEventsByMonth(state.coupleId, state.year, state.month)
         if (cancelled) return
         setState((prev) => ({ ...prev, events, loading: false }))
-      } catch (e) {
+      } catch {
         if (cancelled) return
-        console.error('[calendar] load events failed', e)
         setState((prev) => ({ ...prev, loading: false }))
       }
     }
@@ -177,22 +176,20 @@ export function useCalendarData() {
           ),
           submitting: false,
         }))
-      } catch (e) {
-        console.error('[calendar] createEvent failed', e)
+      } catch {
         setState((prev) => ({ ...prev, submitting: false }))
       }
     },
     [state.coupleId, state.userId]
   )
 
+  const { coupleId, year, month } = state
   const removeEvent = useCallback(
     async (eventId: string) => {
-      const { coupleId, year, month } = state
       setState((prev) => ({ ...prev, events: prev.events.filter((e) => e.id !== eventId) }))
       try {
         await deleteEvent(eventId)
-      } catch (e) {
-        console.error('[calendar] removeEvent failed', e)
+      } catch {
         const events = await getEventsByMonth(coupleId, year, month)
         setState((prev) => {
           if (prev.coupleId !== coupleId || prev.year !== year || prev.month !== month) return prev
@@ -200,7 +197,7 @@ export function useCalendarData() {
         })
       }
     },
-    [state.coupleId, state.year, state.month]
+    [coupleId, year, month]
   )
 
   const editEvent = useCallback(
@@ -237,8 +234,7 @@ export function useCalendarData() {
           ),
           submitting: false,
         }))
-      } catch (e) {
-        console.error('[calendar] editEvent failed', e)
+      } catch {
         setState((prev) => ({ ...prev, submitting: false }))
       }
     },
