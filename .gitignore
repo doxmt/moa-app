@@ -35,6 +35,11 @@ CLAUDE.local.md
 .claude/commands/
 .claude/memory/
 
+# Codex
+.codex/commands/
+.codex/memory/
+.codex/settings.local.json
+
 # Supabase
 supabase/.temp/
 
