@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase/client';
@@ -76,7 +77,14 @@ async function fetchQuestionData(): Promise<QuestionData> {
   }
 
   const refreshMinutes = coupleData.question_refresh_minutes ?? 0;
-  const todayDayNumber = getTodayDayNumber(coupleData.created_at, refreshMinutes);
+  const computed = getTodayDayNumber(coupleData.created_at, refreshMinutes);
+  const dayKey = `balance_game_max_day_${coupleId}`;
+  const stored = await AsyncStorage.getItem(dayKey);
+  const storedMax = stored ? parseInt(stored, 10) : 0;
+  const todayDayNumber = Math.max(computed, storedMax);
+  if (todayDayNumber > storedMax) {
+    await AsyncStorage.setItem(dayKey, String(todayDayNumber));
+  }
 
   const { data: games, error: gamesError } = await supabase
     .from('balance_games')
