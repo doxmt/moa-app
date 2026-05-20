@@ -10,6 +10,8 @@ Apple Developer 등록이 완료되기 전까지는 App Store 제출, TestFlight
 Apple Developer 등록 완료 후 진행한다.
 
 - Apple Developer 계정 등록 완료
+- 개인정보처리방침 공개 URL 설정
+- EAS projectId 생성 및 app.json 연결 확인
 - Sign in with Apple capability 확인
 - Supabase Apple provider 설정 확인
 - EAS production iOS build
@@ -159,8 +161,17 @@ Apple Developer 등록 후 확인한다.
 ## 릴리즈 전 최종 명령
 
 ```bash
-pnpm exec tsc --noEmit
+pnpm run typecheck
 pnpm run lint
+```
+
+## Apple Developer 등록 후 빌드 명령
+
+```bash
+pnpm dlx eas-cli@latest login
+pnpm dlx eas-cli@latest init
+pnpm dlx eas-cli@latest build --platform ios --profile production
+pnpm dlx eas-cli@latest submit --platform ios --profile production
 ```
 
 ## TestFlight 이후 추가 확인
@@ -171,4 +182,3 @@ pnpm run lint
 - 사진 선택/촬영/저장이 실제 기기에서 정상이다.
 - Apple 로그인 실기기 인증이 정상이다.
 - 앱 종료 후 푸시 탭으로 진입 시 올바른 화면으로 이동한다.
-
