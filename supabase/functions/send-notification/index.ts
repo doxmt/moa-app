@@ -130,7 +130,9 @@ Deno.serve(async (req) => {
     return new Response('Server misconfigured', { status: 500 });
   }
   const signature = req.headers.get('x-webhook-secret');
-  if (signature !== webhookSecret) {
+  const authorization = req.headers.get('Authorization');
+  const isServiceRoleRequest = authorization === `Bearer ${serviceKey}`;
+if (signature !== webhookSecret && !isServiceRoleRequest) {
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -259,16 +261,9 @@ Deno.serve(async (req) => {
   // 4. 파트너 스토리 업로드 → 상대방에게 발송
   if (table === 'stories' && type === 'INSERT') {
     // stories 테이블은 user_id 대신 created_by 사용
-    if (!record?.created_by) return new Response('invalid record', { status: 400 });
+    if (!record?.couple_id || !record?.created_by) return new Response('invalid record', { status: 400 });
 
-    const { data: profile } = await admin
-      .from('profiles')
-      .select('couple_id')
-      .eq('user_id', record.created_by)
-      .maybeSingle();
-    if (!profile?.couple_id) return new Response('ok');
-
-    const partnerId = await getPartnerUserId(admin, profile.couple_id, record.created_by);
+    const partnerId = await getPartnerUserId(admin, record.couple_id, record.created_by);
     if (!partnerId) return new Response('ok');
     const nickname = await getPartnerNickname(admin, record.created_by);
 
@@ -276,8 +271,35 @@ Deno.serve(async (req) => {
       targetUserId: partnerId,
       type: 'story',
       title: `${nickname}님이 스토리를 올렸어요!`,
-      body: '새로운 스토리를 확인해보세요 📷',
+      body: '새로운 스토리를 확인해보세요',
       data: { type: 'story', storyId: String(record.id) },
+    });
+    return new Response('ok');
+  }
+
+  // 5. 파트너 일정 생성 → 상대방에게 발송
+  if (table === 'calendar_events' && type === 'INSERT') {
+    if (!record?.couple_id || !record?.created_by || !record?.id) {
+      return new Response('invalid record', { status: 400 });
+    }
+
+    const partnerId = await getPartnerUserId(admin, record.couple_id, record.created_by);
+    if (!partnerId) return new Response('ok');
+    const nickname = await getPartnerNickname(admin, record.created_by);
+    const title = truncate(String(record.title ?? '새 일정'));
+    const date = String(record.start_date ?? '');
+    const body = date ? `${date} · ${title}` : title;
+
+    await notify(admin, {
+      targetUserId: partnerId,
+      type: 'calendar_event',
+      title: `${nickname}님이 일정을 추가했어요!`,
+      body,
+      data: {
+        type: 'calendar_event',
+        eventId: String(record.id),
+        date,
+      },
     });
     return new Response('ok');
   }

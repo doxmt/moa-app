@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, FlatList, Modal, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
-import { X, MessageCircle, Check, MessageSquare, Camera, Heart, Gift, Clock, Bell, Trash2 } from 'lucide-react-native';
+import { X, MessageCircle, Check, MessageSquare, Camera, Calendar, Heart, Gift, Clock, Bell, Trash2 } from 'lucide-react-native';
 
 import { AppNotification, NotificationType } from '@/lib/supabase/notifications';
 import { useNotificationData } from '@/hooks/useNotificationData';
@@ -26,6 +25,7 @@ const TYPE_ICON: Record<NotificationType, IconConfig> = {
   partner_answer:    { icon: Check,         bg: '#F0FDF4', color: '#22C55E' },
   partner_reason:    { icon: MessageSquare, bg: '#FAF5FF', color: '#A855F7' },
   story:             { icon: Camera,        bg: '#FFF7ED', color: '#F97316' },
+  calendar_event:    { icon: Calendar,      bg: '#ECFDF5', color: '#10B981' },
   anniversary:       { icon: Heart,         bg: '#FFF1F2', color: '#F43F5E' },
   birthday:          { icon: Gift,          bg: '#FDF2F8', color: '#EC4899' },
   question_reminder: { icon: Clock,         bg: '#FFFBEB', color: '#F59E0B' },
@@ -176,7 +176,6 @@ function NotificationItem({
 }
 
 export default function NotificationModal({ visible, onClose }: Props) {
-  const { top } = useSafeAreaInsets();
   const router = useRouter();
   const { notifications, isLoading, markAllAsRead, deleteAll, deleteOne, markAsRead } = useNotificationData();
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
@@ -194,10 +193,10 @@ export default function NotificationModal({ visible, onClose }: Props) {
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View className="flex-1 bg-white" style={{ paddingTop: top }}>
+      <View className="flex-1 bg-white">
 
         {/* 헤더 */}
-        <View className="flex-row items-center justify-between px-5 pt-5 pb-4">
+        <View className="flex-row items-center justify-between px-5 pt-3 pb-3">
           <Text className="text-xl font-bold text-moa-text">알림</Text>
           <TouchableOpacity onPress={onClose} className="p-1">
             <X size={22} color="#888888" strokeWidth={1.8} />

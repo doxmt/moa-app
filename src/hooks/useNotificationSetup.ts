@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -10,14 +11,16 @@ import { markOneAsRead, savePushToken } from '@/lib/supabase/notifications';
 import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/lib/supabase/client';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+}
 
 export function getRouteForNotificationType(type: string): string {
   switch (type) {
@@ -28,6 +31,7 @@ export function getRouteForNotificationType(type: string): string {
       return '/(tabs)/question';
     case 'story':
       return '/(tabs)/story';
+    case 'calendar_event':
     case 'anniversary':
     case 'birthday':
       return '/(tabs)/calendar';
@@ -61,7 +65,8 @@ async function registerPushToken() {
   // Expo Go에서는 getExpoPushTokenAsync가 실패함 — 조용히 건너뜀
   let expoPushToken: string;
   try {
-    const result = await Notifications.getExpoPushTokenAsync();
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    const result = await Notifications.getExpoPushTokenAsync({ projectId });
     expoPushToken = result.data;
   } catch {
     return;
@@ -103,19 +108,19 @@ async function scheduleAnniversaryNotifications(createdAt: string) {
       id: 'anniversary-d7',
       daysBefore: 7,
       title: '기념일이 일주일 남았어요!',
-      body: `${anniversary.getMonth() + 1}월 ${anniversary.getDate()}일이 커플 기념일이에요 🎉`,
+      body: `${anniversary.getMonth() + 1}월 ${anniversary.getDate()}일이 커플 기념일이에요`,
     },
     {
       id: 'anniversary-d1',
       daysBefore: 1,
       title: '내일이 기념일이에요!',
-      body: '소중한 하루를 함께 준비해보세요 💕',
+      body: '소중한 하루를 함께 준비해보세요',
     },
     {
       id: 'anniversary-d0',
       daysBefore: 0,
       title: '오늘은 기념일이에요!',
-      body: '커플 기념일을 축하해요 🎊',
+      body: '커플 기념일을 축하해요',
     },
   ];
 
@@ -157,19 +162,19 @@ async function scheduleBirthdayNotifications(birthday: string, partnerName: stri
       id: 'birthday-d7',
       daysBefore: 7,
       title: `${partnerName}의 생일이 일주일 남았어요!`,
-      body: '미리 선물을 준비해보는 건 어떨까요? 🎁',
+      body: '미리 선물을 준비해보는 건 어떨까요?',
     },
     {
       id: 'birthday-d1',
       daysBefore: 1,
       title: `내일은 ${partnerName}의 생일이에요!`,
-      body: '축하 준비 다 됐나요? 💝',
+      body: '축하 준비 다 됐나요?',
     },
     {
       id: 'birthday-d0',
       daysBefore: 0,
       title: `오늘은 ${partnerName}의 생일이에요!`,
-      body: '소중한 사람의 특별한 날을 함께해요 🎂',
+      body: '소중한 사람의 특별한 날을 함께해요',
     },
   ];
 
@@ -243,7 +248,7 @@ export function useNotificationSetup() {
   const handledIds = useRef(new Set<string>());
 
   useEffect(() => {
-    if (!session) return;
+    if (Platform.OS === 'web' || !session) return;
     let cancelled = false;
     (async () => {
       try {
@@ -257,6 +262,8 @@ export function useNotificationSetup() {
   }, [session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (Platform.OS === 'web') return;
+
     function handleResponse(response: Notifications.NotificationResponse) {
       const id = response.notification.request.identifier;
       if (handledIds.current.has(id)) return;

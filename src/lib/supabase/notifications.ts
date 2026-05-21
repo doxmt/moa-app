@@ -5,6 +5,7 @@ export type NotificationType =
   | 'partner_answer'
   | 'partner_reason'
   | 'story'
+  | 'calendar_event'
   | 'anniversary'
   | 'birthday'
   | 'question_reminder';
