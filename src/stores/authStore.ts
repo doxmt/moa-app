@@ -20,10 +20,10 @@ async function checkProfileComplete(userId: string): Promise<boolean> {
   try {
     const { data } = await supabase
       .from('profiles')
-      .select('name')
+      .select('name, nickname')
       .eq('user_id', userId)
       .maybeSingle();
-    return !!data?.name;
+    return !!(data?.name || data?.nickname);
   } catch {
     return false;
   }
@@ -81,7 +81,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setProfileComplete: (value: boolean) => set({ profileComplete: value }),
 
   signOut: async () => {
-    await supabase.auth.signOut();
-    set({ session: null, user: null, profileComplete: null });
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      set({ session: null, user: null, profileComplete: null });
+    }
   },
 }));

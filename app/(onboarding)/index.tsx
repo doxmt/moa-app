@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import ScrollDatePicker from '@/components/ui/ScrollDatePicker';
@@ -31,6 +32,7 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { top, bottom } = useSafeAreaInsets();
   const { signOut, setProfileComplete } = useAuthStore();
+  const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [step, setStep] = useState<Step>('profile');
   const [loading, setLoading] = useState(false);
@@ -63,7 +65,12 @@ export default function OnboardingScreen() {
     const { error: upsertErr } = await supabase
       .from('profiles')
       .upsert(
-        { user_id: user.id, name: name.trim(), birthday: toIsoDate(birthday) },
+        {
+          user_id: user.id,
+          name: name.trim(),
+          nickname: name.trim(),
+          birthday: toIsoDate(birthday),
+        },
         { onConflict: 'user_id' }
       );
 
@@ -166,6 +173,8 @@ export default function OnboardingScreen() {
 
     setProfileComplete(true);
     setLoading(false);
+    queryClient.invalidateQueries({ queryKey: ['home-data'] });
+    queryClient.invalidateQueries({ queryKey: ['question-data'] });
     router.replace('/(tabs)/home');
   };
 

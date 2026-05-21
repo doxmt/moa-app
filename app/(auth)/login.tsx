@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -11,6 +12,7 @@ import { supabase } from '@/lib/supabase/client';
 WebBrowser.maybeCompleteAuthSession();
 
 type Provider = 'kakao' | 'google' | 'apple';
+type OAuthProvider = Exclude<Provider, 'apple'>;
 
 function KakaoIcon() {
   return (
@@ -85,13 +87,97 @@ const PROVIDERS: {
   },
 ];
 
-const visibleProviders = PROVIDERS.filter(
-  (p) => p.id !== 'apple' || Platform.OS === 'ios'
-);
+function isAppleCancelError(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'ERR_REQUEST_CANCELED'
+  );
+}
 
 export default function LoginScreen() {
   const { showToast } = useToast();
   const [loadingProvider, setLoadingProvider] = useState<Provider | null>(null);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    AppleAuthentication.isAvailableAsync()
+      .then(setAppleAvailable)
+      .catch(() => setAppleAvailable(false));
+  }, []);
+
+  const visibleProviders = PROVIDERS.filter(
+    (p) => p.id !== 'apple' || appleAvailable
+  );
+
+  const handleAppleLogin = async () => {
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+
+    if (!credential.identityToken) {
+      throw new Error('Apple 인증 토큰을 받지 못했습니다.');
+    }
+
+    const { error } = await supabase.auth.signInWithIdToken({
+      provider: 'apple',
+      token: credential.identityToken,
+    });
+
+    if (error) throw error;
+  };
+
+  const handleOAuthLogin = async (provider: OAuthProvider) => {
+    const redirectTo = Linking.createURL('auth/callback');
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo,
+        scopes:
+          provider === 'kakao'
+            ? 'profile_nickname profile_image account_email'
+            : undefined,
+        skipBrowserRedirect: true,
+      },
+    });
+
+    if (error) throw error;
+    if (!data.url) throw new Error('OAuth URL을 받지 못했습니다.');
+
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
+    if (result.type !== 'success') return false;
+
+    const parsed = Linking.parse(result.url);
+    let accessToken = parsed.queryParams?.access_token as string | undefined;
+    let refreshToken = parsed.queryParams?.refresh_token as string | undefined;
+    let errorMsg = parsed.queryParams?.error_description as string | undefined;
+
+    if (!accessToken && result.url.includes('#')) {
+      const hash = result.url.split('#')[1] ?? '';
+      const params = new URLSearchParams(hash);
+      accessToken = params.get('access_token') ?? undefined;
+      refreshToken = params.get('refresh_token') ?? undefined;
+      errorMsg = errorMsg ?? params.get('error_description') ?? undefined;
+    }
+
+    if (errorMsg) throw new Error(errorMsg);
+    if (!accessToken || !refreshToken) throw new Error('토큰을 받지 못했습니다.');
+
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+
+    if (sessionError) throw sessionError;
+    return true;
+  };
 
   const handleSocialLogin = async (provider: Provider) => {
     if (loadingProvider) return;
@@ -99,52 +185,11 @@ export default function LoginScreen() {
 
     let success = false;
     try {
-      const redirectTo = Linking.createURL('auth/callback');
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo,
-          scopes:
-            provider === 'kakao'
-              ? 'profile_nickname profile_image account_email'
-              : undefined,
-          skipBrowserRedirect: true,
-        },
-      });
-
-      if (error) throw error;
-      if (!data.url) throw new Error('OAuth URL을 받지 못했습니다.');
-
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-
-      if (result.type !== 'success') return;
-
-      const parsed = Linking.parse(result.url);
-      let accessToken = parsed.queryParams?.access_token as string | undefined;
-      let refreshToken = parsed.queryParams?.refresh_token as string | undefined;
-      let errorMsg = parsed.queryParams?.error_description as string | undefined;
-
-      if (!accessToken && result.url.includes('#')) {
-        const hash = result.url.split('#')[1] ?? '';
-        const params = new URLSearchParams(hash);
-        accessToken = params.get('access_token') ?? undefined;
-        refreshToken = params.get('refresh_token') ?? undefined;
-        errorMsg = errorMsg ?? params.get('error_description') ?? undefined;
-      }
-
-      if (errorMsg) throw new Error(errorMsg);
-      if (!accessToken || !refreshToken) throw new Error('토큰을 받지 못했습니다.');
-
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-
-      if (sessionError) throw sessionError;
-
-      success = true; // 성공 시 로딩 유지 (화면 전환까지)
+      success = provider === 'apple'
+        ? await handleAppleLogin().then(() => true)
+        : await handleOAuthLogin(provider);
     } catch (e) {
+      if (provider === 'apple' && isAppleCancelError(e)) return;
       showToast(e instanceof Error ? e.message : '알 수 없는 오류가 발생했어요.');
     } finally {
       if (!success) setLoadingProvider(null);

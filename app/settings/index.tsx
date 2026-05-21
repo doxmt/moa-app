@@ -91,7 +91,7 @@ export default function SettingsScreen() {
 
         const { data: myProfile } = await supabase
           .from('profiles')
-          .select('name, couple_id')
+          .select('name, nickname, couple_id')
           .eq('user_id', user.id)
           .single();
 
@@ -103,7 +103,7 @@ export default function SettingsScreen() {
           const [{ data: partner }, { data: couple }] = await Promise.all([
             supabase
               .from('profiles')
-              .select('name')
+              .select('name, nickname')
               .eq('couple_id', myProfile.couple_id)
               .neq('user_id', user.id)
               .maybeSingle(),
@@ -114,7 +114,7 @@ export default function SettingsScreen() {
               .single(),
           ]);
           if (cancelled) return;
-          partnerName = partner?.name ?? null;
+          partnerName = partner?.name ?? partner?.nickname ?? null;
           setRefreshMinutes(couple?.question_refresh_minutes ?? 0);
           setInviteCode(couple?.invite_code ?? null);
         } else {
@@ -122,7 +122,7 @@ export default function SettingsScreen() {
           setInviteCode(null);
         }
 
-        setProfile({ name: myProfile.name, partnerName });
+        setProfile({ name: myProfile.name ?? myProfile.nickname, partnerName });
       }
 
       load();

@@ -48,12 +48,12 @@ export default function ProfileEditScreen() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('name, birthday')
+        .select('name, nickname, birthday')
         .eq('user_id', user.id)
         .single();
 
       if (!profile || cancelled) return;
-      setName(profile.name ?? '');
+      setName(profile.name ?? profile.nickname ?? '');
       setBirthday(fromIsoDate(profile.birthday));
     }
     load();
@@ -69,7 +69,7 @@ export default function ProfileEditScreen() {
 
     const { error } = await supabase
       .from('profiles')
-      .update({ name: name.trim(), birthday: toIsoDate(birthday) })
+      .update({ name: name.trim(), nickname: name.trim(), birthday: toIsoDate(birthday) })
       .eq('user_id', user.id);
 
     setSaving(false);

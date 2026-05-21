@@ -13,7 +13,7 @@ export async function fetchCoupleBasic(): Promise<CoupleBasic | null> {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('couple_id, couple_nickname, name')
+    .select('couple_id, couple_nickname, name, nickname')
     .eq('user_id', user.id)
     .single();
 
@@ -21,7 +21,7 @@ export async function fetchCoupleBasic(): Promise<CoupleBasic | null> {
 
   const { data: partner } = await supabase
     .from('profiles')
-    .select('couple_nickname, name')
+    .select('couple_nickname, name, nickname')
     .eq('couple_id', profile.couple_id)
     .neq('user_id', user.id)
     .single();
@@ -31,7 +31,7 @@ export async function fetchCoupleBasic(): Promise<CoupleBasic | null> {
   return {
     userId: user.id,
     coupleId: profile.couple_id,
-    myNickname: profile.couple_nickname ?? profile.name ?? '',
-    partnerNickname: partner?.couple_nickname ?? partner?.name ?? null,
+    myNickname: profile.couple_nickname ?? profile.name ?? profile.nickname ?? '',
+    partnerNickname: partner?.couple_nickname ?? partner?.name ?? partner?.nickname ?? null,
   };
 }
