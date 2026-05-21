@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 import { supabase } from './client';
 
@@ -11,23 +12,31 @@ function base64ToUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
+async function compressImage(uri: string): Promise<string> {
+  const result = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: 1200 } }],
+    { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+  );
+  return result.uri;
+}
+
 export async function uploadCouplePhoto(uri: string, coupleId: string): Promise<string> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error('로그인이 필요합니다');
 
-  const filename = uri.split('/').pop() ?? 'photo.jpg';
-  const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
+  const compressed = await compressImage(uri);
   const photoId = Date.now().toString(36) + Math.random().toString(36).slice(2);
-  const storagePath = `${coupleId}/${photoId}.${ext}`;
+  const storagePath = `${coupleId}/${photoId}.jpg`;
 
-  const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+  const base64 = await FileSystem.readAsStringAsync(compressed, { encoding: 'base64' });
   const fileData = base64ToUint8Array(base64);
 
   const { error: uploadError } = await supabase.storage
     .from('couple-photos')
-    .upload(storagePath, fileData, { contentType: `image/${ext}`, upsert: false });
+    .upload(storagePath, fileData, { contentType: 'image/jpeg', upsert: false });
 
   if (uploadError) throw uploadError;
 

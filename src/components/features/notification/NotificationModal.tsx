@@ -196,9 +196,9 @@ export default function NotificationModal({ visible, onClose }: Props) {
       <View className="flex-1 bg-white">
 
         {/* 헤더 */}
-        <View className="flex-row items-center justify-between px-5 pt-3 pb-3">
+        <View className="items-center justify-center px-5 pt-3 pb-3">
           <Text className="text-xl font-bold text-moa-text">알림</Text>
-          <TouchableOpacity onPress={onClose} className="p-1">
+          <TouchableOpacity onPress={onClose} className="p-1" style={{ position: 'absolute', right: 20 }}>
             <X size={22} color="#888888" strokeWidth={1.8} />
           </TouchableOpacity>
         </View>

@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 import { supabase } from './client';
 
@@ -22,6 +23,15 @@ function base64ToUint8Array(base64: string): Uint8Array {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes;
+}
+
+async function compressImage(uri: string): Promise<string> {
+  const result = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: 1200 } }],
+    { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+  );
+  return result.uri;
 }
 
 export async function getStories(coupleId: string, isPremium = false): Promise<Story[]> {
@@ -69,17 +79,16 @@ export async function addStory(
     .gte('created_at', today.toISOString());
   if ((count ?? 0) >= FREE_DAILY_LIMIT) throw new Error('DAILY_LIMIT_EXCEEDED');
 
-  const filename = uri.split('/').pop() ?? 'photo.jpg';
-  const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
+  const compressed = await compressImage(uri);
   const storyId = Date.now().toString(36) + Math.random().toString(36).slice(2);
-  const storagePath = `${coupleId}/stories/${storyId}.${ext}`;
+  const storagePath = `${coupleId}/stories/${storyId}.jpg`;
 
-  const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+  const base64 = await FileSystem.readAsStringAsync(compressed, { encoding: 'base64' });
   const fileData = base64ToUint8Array(base64);
 
   const { error: uploadError } = await supabase.storage
     .from('couple-photos')
-    .upload(storagePath, fileData, { contentType: `image/${ext}`, upsert: false });
+    .upload(storagePath, fileData, { contentType: 'image/jpeg', upsert: false });
 
   if (uploadError) throw uploadError;
 
