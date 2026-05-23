@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Modal, StyleSheet, Text, View } from 'react-native';
 
 type ToastContextType = {
   showToast: (message: string) => void;
@@ -9,29 +9,33 @@ const ToastContext = createContext<ToastContextType>({ showToast: () => {} });
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [message, setMessage] = useState('');
+  const [visible, setVisible] = useState(false);
   const opacity = useRef(new Animated.Value(0)).current;
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const showToast = useCallback((msg: string) => {
     if (animRef.current) animRef.current.stop();
     setMessage(msg);
+    setVisible(true);
     opacity.setValue(0);
     animRef.current = Animated.sequence([
       Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
       Animated.delay(2500),
       Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]);
-    animRef.current.start();
+    animRef.current.start(() => setVisible(false));
   }, [opacity]);
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <Animated.View style={[styles.toast, { opacity }]} pointerEvents="none">
-        <View style={styles.pill}>
-          <Text style={styles.text}>{message}</Text>
-        </View>
-      </Animated.View>
+      <Modal visible={visible} transparent animationType="none" statusBarTranslucent presentationStyle="overFullScreen">
+        <Animated.View style={[styles.toast, { opacity }]} pointerEvents="none">
+          <View style={styles.pill}>
+            <Text style={styles.text}>{message}</Text>
+          </View>
+        </Animated.View>
+      </Modal>
     </ToastContext.Provider>
   );
 }

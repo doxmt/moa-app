@@ -61,6 +61,9 @@ export default function StoryViewer({
 
   const selected = viewerGroup[viewerIndex] ?? null;
   const isMyStory = selected ? selected.created_by === userId : false;
+  const isEditable = isMyStory && selected
+    ? Date.now() - new Date(selected.created_at).getTime() < 24 * 60 * 60 * 1000
+    : false;
 
   const showSavedToast = () => {
     Animated.sequence([
@@ -241,15 +244,17 @@ export default function StoryViewer({
               <View className="flex-row gap-3">
                 {isMyStory ? (
                   <>
-                    <TouchableOpacity
-                      onPress={() => { setEditCaptionValue(selected.caption ?? ''); setEditingCaption(true); }}
-                      className="flex-1 h-11 rounded-2xl border border-moa-border items-center justify-center"
-                    >
-                      <View className="flex-row items-center gap-2">
-                        <Pencil size={15} color="#222222" strokeWidth={2.2} />
-                        <Text className="text-moa-text text-sm font-semibold">수정</Text>
-                      </View>
-                    </TouchableOpacity>
+                    {isEditable && (
+                      <TouchableOpacity
+                        onPress={() => { setEditCaptionValue(selected.caption ?? ''); setEditingCaption(true); }}
+                        className="flex-1 h-11 rounded-2xl border border-moa-border items-center justify-center"
+                      >
+                        <View className="flex-row items-center gap-2">
+                          <Pencil size={15} color="#222222" strokeWidth={2.2} />
+                          <Text className="text-moa-text text-sm font-semibold">수정</Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
                     <TouchableOpacity
                       onPress={() => setShowDeleteConfirm(true)}
                       className="flex-1 h-11 rounded-2xl border border-moa-border items-center justify-center"
