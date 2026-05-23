@@ -193,7 +193,7 @@ export default function CalendarScreen() {
   }
 
   return (
-    <View className="flex-1 px-4 pt-2 pb-2">
+    <View className="flex-1 bg-white px-4 pt-2 pb-2">
       {/* 월 헤더 */}
       <View className="flex-row items-center justify-between mb-2">
         <TouchableOpacity onPress={goToPrevMonth} className="w-8 h-8 items-center justify-center">
