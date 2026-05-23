@@ -309,6 +309,9 @@ export function LadderPage({ onBack }: { onBack: () => void }) {
 
       {phase === 'ladder' && (
         <View className="flex-1 px-5 pb-5 gap-3">
+          {selectedPlayer === null && (
+            <Text className="text-sm text-moa-text text-center font-medium">이름을 클릭해서 결과를 확인해보세요</Text>
+          )}
           <View className="flex-1 rounded-3xl border border-moa-border bg-white items-center justify-center py-4">
             <Svg width={svgW} height={svgH}>
               {/* 세로선 */}
@@ -377,13 +380,12 @@ export function LadderPage({ onBack }: { onBack: () => void }) {
             </Svg>
           </View>
 
-          <Text className="text-xs text-moa-muted text-center">{hintText}</Text>
 
           <TouchableOpacity
             onPress={() => setShowResults(true)}
             className="w-full py-4 rounded-2xl bg-moa-text items-center"
           >
-            <Text className="text-white text-sm font-semibold">결과 확인</Text>
+            <Text className="text-white text-sm font-semibold">전체 결과 확인</Text>
           </TouchableOpacity>
         </View>
       )}
