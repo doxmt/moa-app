@@ -211,7 +211,7 @@ export default function SettingsScreen() {
             onPress={() => router.push('/settings/question-hour')}
           />
           <Row label="알림 설정" onPress={() => Linking.openSettings()} />
-          <Row label="문의하기" onPress={() => Linking.openURL('mailto:team.moa.app@gmail.com')} />
+          <Row label="문의하기" onPress={() => Linking.openURL('mailto:salutlesamis0602@gmail.com')} />
           <Row
             label="버전 정보"
             value={Constants.expoConfig?.version ?? '1.0.0'}
